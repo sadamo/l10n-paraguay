@@ -107,6 +107,41 @@ class AccountMove(models.Model):
         help="Documentos asociados al DTE (Grupo H del SIFEN)",
     )
 
+    # Eventos de receptor (acuse de recibo / conformidad / disconformidad /
+    # desconocimiento), sólo relevante cuando esta empresa recibió el DTE
+    # (in_invoice/in_refund). Sólo lectura: la lógica vive en el modelo
+    # dedicado l10n_py.edi.received.event.
+    l10n_py_received_event_ids = fields.One2many(
+        "l10n_py.edi.received.event",
+        "move_id",
+        string="Eventos de Receptor",
+    )
+    l10n_py_received_event_count = fields.Integer(
+        compute="_compute_l10n_py_received_event_count",
+    )
+
+    @api.depends("l10n_py_received_event_ids")
+    def _compute_l10n_py_received_event_count(self):
+        for move in self:
+            move.l10n_py_received_event_count = len(move.l10n_py_received_event_ids)
+
+    def action_open_received_events(self):
+        """Abrir los eventos de receptor de esta factura de proveedor."""
+        self.ensure_one()
+        action = {
+            "type": "ir.actions.act_window",
+            "name": _("Eventos de Receptor"),
+            "res_model": "l10n_py.edi.received.event",
+            "view_mode": "list,form",
+            "domain": [("move_id", "=", self.id)],
+            "context": {
+                "default_move_id": self.id,
+                "default_partner_id": self.partner_id.id,
+                "default_company_id": self.company_id.id,
+            },
+        }
+        return action
+
     # Operación comercial (Grupo D — gOpeCom)
     l10n_py_exchange_rate_condition = fields.Selection(
         [("1", "Global"), ("2", "Por Ítem")],
@@ -591,6 +626,7 @@ class AccountMove(models.Model):
         if not country or not country.code:
             return "PRY"
         return AccountMove._ALPHA2_TO_3.get(country.code, country.code)
+
 
     def _prepare_edi_document_data(self):
         """Preparar datos del documento electrónico en formato JSON"""
