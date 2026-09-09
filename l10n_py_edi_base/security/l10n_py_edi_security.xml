@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo noupdate="1">
+    <!-- TEMPORARIO/MIG 19.0: res.groups.category_id foi removido -
+         res.groups agora usa privilege_id (res.groups.privilege), que ja
+         carrega o category_id. Reaproveita o privilege que o account ja
+         declara (account/security/account_security.xml). -->
     <record id="group_edi_manager" model="res.groups">
         <field name="name">EDI Manager</field>
-        <field name="category_id" ref="base.module_category_accounting" />
+        <field name="privilege_id" ref="account.res_groups_privilege_accounting" />
         <field name="implied_ids" eval="[(4, ref('account.group_account_manager'))]" />
     </record>
 </odoo>
