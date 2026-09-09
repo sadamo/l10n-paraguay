@@ -210,7 +210,18 @@ class ResPartner(models.Model):
         if "-" in vat:
             ruc_num = vat.split("-", 1)[0]
         else:
-            ruc_num = "".join(c for c in vat if c.isdigit())
+            digits = "".join(c for c in vat if c.isdigit())
+            # TEMPORARIO/MIG 19.0: account._check_vat agora reescreve
+            # partner.vat com o valor compactado de _run_vat_checks (sem
+            # traco), o que dispara write() -> _format_vat_py de novo. Sem
+            # traco nao da pra saber se os digitos ja incluem o DV; se ja
+            # formam um RUC valido, so separa base+DV em vez de tratar tudo
+            # como base crua e colar um segundo DV em cima.
+            ruc_num = (
+                RUCValidator.get_ruc_number(digits)
+                if RUCValidator.validate(digits)[0]
+                else digits
+            )
 
         if ruc_num and ruc_num.isdigit() and len(ruc_num) >= 6:
             dv = str(RUCValidator._calculate_check_digit(ruc_num))
