@@ -1,6 +1,6 @@
 {
     "name": "Paraguay - Accounting",
-    "version": "18.0.2.0.0",
+    "version": "19.0.2.0.0",
     "category": "Accounting/Localizations/Account Charts",
     "summary": "Localización contable para Paraguay",
     "author": "KMEE, Odoo Community Association (OCA)",
