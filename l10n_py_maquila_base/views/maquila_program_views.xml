@@ -156,7 +156,10 @@
                     domain="[('state', '=', 'suspended')]"
                 />
                 <separator />
-                <group expand="0" string="Group By">
+                <!-- TEMPORARIO/MIG 19.0: <group> de Agrupar Por no 19.0 nao
+                     aceita mais expand/string (ver account_move_views.xml
+                     do core) -->
+                <group>
                     <filter
                         name="group_state"
                         string="State"
