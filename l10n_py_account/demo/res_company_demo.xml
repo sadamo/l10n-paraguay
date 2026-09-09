@@ -1,19 +1,44 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo noupdate="1">
-    <!-- Configurar empresa principal como paraguaya.
-         No cambiamos currency_id porque el módulo account puede haber
-         creado journal items con la moneda por defecto, y Odoo bloquea
-         cambios de moneda cuando ya existen asientos. -->
-    <record id="base.main_company" model="res.company">
+    <!-- TEMPORARIO/MIG 19.0: antes este arquivo mudava country_id/
+         account_fiscal_country_id de base.main_company depois que o demo
+         padrao do account/base ja tinha criado essa empresa com o chart
+         generico + faturas validadas. No 19.0 isso dispara reaplicacao do
+         chart em cima de dados existentes e quebra (account_journal.write
+         em l10n_latam_invoice_document: "Use Documents?" com fatura
+         validada). Padrao correto confirmado em dois modulos reais
+         (core l10n_cl/demo/company_demo.xml e OCA l10n_br_base/demo/
+         res_company_demo.xml): nunca retroagir country/moeda numa empresa
+         que ja tem dados - criar uma empresa de demo propria com o pais
+         definido na criacao. -->
+
+    <record id="demo_partner_py" model="res.partner" forcecreate="1">
         <field name="name">Empresa Demo Paraguay SRL</field>
+        <field name="is_company" eval="True" />
         <field name="country_id" ref="base.py" />
-        <field name="account_fiscal_country_id" ref="base.py" />
+        <field name="state_id" ref="l10n_py_base.state_py_asuncion" />
         <field name="street">Avda. Mariscal López 3456</field>
         <field name="city">Asunción</field>
-        <field name="state_id" ref="l10n_py_base.state_py_asuncion" />
         <field name="zip">1209</field>
         <field name="phone">+595 21 555 0000</field>
         <field name="email">info@empresademo.com.py</field>
         <field name="website">https://www.empresademo.com.py</field>
     </record>
+
+    <record id="demo_company_py" model="res.company" forcecreate="1">
+        <field name="name">Empresa Demo Paraguay SRL</field>
+        <field name="partner_id" ref="demo_partner_py" />
+        <field name="country_id" ref="base.py" />
+        <field name="account_fiscal_country_id" ref="base.py" />
+    </record>
+
+    <function model="res.users" name="write">
+        <value eval="[ref('base.user_root'), ref('base.user_admin'), ref('base.user_demo')]" />
+        <value eval="{'company_ids': [(4, ref('demo_company_py'))]}" />
+    </function>
+
+    <!-- TEMPORARIO/MIG 19.0: chart carregado no post_init_hook
+         (hooks.py:post_init_hook), nao aqui - try_loading precisa do
+         registro totalmente carregado, o que nao acontece ainda durante o
+         parse dos XML de demo (motivo ja documentado no proprio hooks.py). -->
 </odoo>

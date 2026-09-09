@@ -22,7 +22,12 @@ def post_init_hook(env):
     module = env["ir.module.module"].search([("name", "=", "l10n_py_account")], limit=1)
     if not module.demo:
         return
-    company = env.ref("base.main_company")
+    # TEMPORARIO/MIG 19.0: usa a empresa de demo propria criada em
+    # res_company_demo.xml (demo_company_py), nao mais base.main_company -
+    # essa ja tem o chart generico + fatura de demo validada de base/account,
+    # e reaplicar outro chart em cima quebra no 19.0 (l10n_latam_invoice_document
+    # bloqueia write em "Use Documents?" com fatura validada no diario).
+    company = env.ref("l10n_py_account.demo_company_py")
     # En post_init el registro aún no está "ready", por lo que try_loading emite
     # un WARNING ("Incorrect usage of try_loading without a fully loaded
     # registry"); la carga funciona igualmente. Silenciamos ese logger solo
@@ -34,11 +39,16 @@ def post_init_hook(env):
         env["account.chart.template"].try_loading("py", company)
     finally:
         chart_logger.setLevel(previous_level)
-    for fname in (
-        "demo/product_product_demo.xml",
-        "demo/account_customer_invoice_demo.xml",
-        "demo/account_supplier_invoice_demo.xml",
-    ):
+    # TEMPORARIO/MIG 19.0: account_customer_invoice_demo.xml e
+    # account_supplier_invoice_demo.xml desativados - as linhas de fatura
+    # nao resolvem account_id (account_move_line_check_accountable_required_fields)
+    # na demo_company_py recem-criada, provavelmente porque
+    # try_loading(install_demo=False, o default aqui) nao popula as
+    # ir.property de conta de receita/despesa por categoria pra essa
+    # empresa. Precisa de investigacao a parte (fora do escopo desta
+    # migracao) antes de reativar. product_product_demo.xml (sem essa
+    # dependencia) segue ativo.
+    for fname in ("demo/product_product_demo.xml",):
         _logger.info("l10n_py_account: cargando demo %s", fname)
         convert_file(
             env,
