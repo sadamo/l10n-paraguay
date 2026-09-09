@@ -80,7 +80,10 @@
         <field name="priority">110</field>
         <field name="arch" type="xml">
             <!-- Nombre de Fantasía después del nombre (patrón l10n_br_base) -->
-            <xpath expr="//div[hasclass('oe_title')]" position="after">
+            <!-- TEMPORARIO/MIG 19.0: div.oe_title nao existe mais no form de
+                 parceiro (base/views/res_partner_views.xml); o nome agora
+                 fica dentro de h1.mb-0 -->
+            <xpath expr="//h1[hasclass('mb-0')]" position="after">
                 <field
                     name="l10n_py_fantasy_name"
                     placeholder="Nombre de Fantasía..."
@@ -89,8 +92,12 @@
             </xpath>
 
             <!-- Campos fiscales PY después del bloque de identificación LATAM -->
+            <!-- TEMPORARIO/MIG 19.0: l10n_latam_identification_type_id nao
+                 fica mais dentro de uma div propria
+                 (l10n_latam_base/views/res_partner_view.xml) - ancora no
+                 proprio campo -->
             <xpath
-                expr="//div[field[@name='l10n_latam_identification_type_id']]"
+                expr="//field[@name='l10n_latam_identification_type_id']"
                 position="after"
             >
                 <field
