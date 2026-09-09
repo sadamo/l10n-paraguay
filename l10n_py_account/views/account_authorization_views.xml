@@ -136,8 +136,11 @@
                     domain="[('active', '=', False)]"
                 />
                 <separator />
-                <field name="l10n_latam_document_type_id" />
-                <group expand="0" string="Agrupar Por">
+                <!-- TEMPORARIO/MIG 19.0: campo duplicado (ja declarado acima)
+                     removido. <group> de Agrupar Por no 19.0 nao aceita mais
+                     os atributos expand/string (ver account_move_views.xml
+                     do core: so <group> puro) -->
+                <group>
                     <filter
                         string="Estado"
                         name="group_state"
