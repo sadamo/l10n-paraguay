@@ -15,6 +15,18 @@ class AccountChartTemplate(models.AbstractModel):
             "code_digits": "6",
             "property_account_receivable_id": "account_py_301",
             "property_account_payable_id": "account_py_2001",
+            # TEMPORARIO/MIG 19.0: property_account_expense_categ_id e
+            # property_account_income_categ_id NUNCA foram aplicados por
+            # account.chart.template - _get_property_accounts() so reconhece
+            # property_account_receivable_id/payable_id/property_stock_journal
+            # por padrao (ver account/models/chart_template.py
+            # _post_load_data/_get_property_accounts no core). Esses dois
+            # ficavam sem efeito (nao e regressao do 19.0: mesmo "dead code"
+            # existe em l10n_co, unico outro modulo core que declara essas
+            # chaves). O default de conta de receita/despesa por categoria e
+            # derivado de company.income_account_id/expense_account_id (ver
+            # _get_py_res_company abaixo) - mantido aqui so por
+            # compatibilidade/documentacao, sem efeito pratico.
             "property_account_expense_categ_id": "account_py_50101_expense",
             "property_account_income_categ_id": "account_py_40101_income",
         }
@@ -39,5 +51,18 @@ class AccountChartTemplate(models.AbstractModel):
                 "account_journal_payment_credit_account_id": "account_py_2001",
                 "account_sale_tax_id": "py_tax_vat_10_ventas",
                 "account_purchase_tax_id": "py_tax_vat_10_compras",
+                # FIX (nao especifico do 19.0): sem estes dois campos,
+                # account.chart.template._post_load_data nunca seta o
+                # ir.default de product.category.property_account_income/
+                # expense_categ_id (ver core: esse default vem de
+                # company.income_account_id/expense_account_id, nao das
+                # chaves property_account_*_categ_id acima). Toda empresa
+                # nova com o chart py ficava sem conta de receita/despesa
+                # default por categoria - so nao aparecia em base.main_company
+                # porque essa ja herdava income_account_id/expense_account_id
+                # do chart generico instalado antes. Padrao confirmado em
+                # l10n_ar/l10n_cl/l10n_mx e na maioria dos outros core charts.
+                "income_account_id": "account_py_40101_income",
+                "expense_account_id": "account_py_50101_expense",
             },
         }

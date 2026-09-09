@@ -51,11 +51,7 @@
         "demo/account_move_nde_demo.xml",
         "demo/account_move_nre_demo.xml",
         "demo/account_move_afe_demo.xml",
-        # TEMPORARIO/MIG 19.0: referencia l10n_py_account.demo_invoice_fe_iva10,
-        # que esta desativada la (ver l10n_py_account/hooks.py) - reativar
-        # junto quando aquele problema for resolvido. E so um exemplo
-        # adicional de documento associado, o proprio arquivo diz isso.
-        # "demo/l10n_py_associated_document_demo.xml",
+        "demo/l10n_py_associated_document_demo.xml",
         "demo/l10n_py_number_inutilization_demo.xml",
     ],
     "installable": True,

@@ -39,16 +39,18 @@ def post_init_hook(env):
         env["account.chart.template"].try_loading("py", company)
     finally:
         chart_logger.setLevel(previous_level)
-    # TEMPORARIO/MIG 19.0: account_customer_invoice_demo.xml e
-    # account_supplier_invoice_demo.xml desativados - as linhas de fatura
-    # nao resolvem account_id (account_move_line_check_accountable_required_fields)
-    # na demo_company_py recem-criada, provavelmente porque
-    # try_loading(install_demo=False, o default aqui) nao popula as
-    # ir.property de conta de receita/despesa por categoria pra essa
-    # empresa. Precisa de investigacao a parte (fora do escopo desta
-    # migracao) antes de reativar. product_product_demo.xml (sem essa
-    # dependencia) segue ativo.
-    for fname in ("demo/product_product_demo.xml",):
+    # As faturas de demo (customer/supplier) dependem de account_id default
+    # por categoria de produto, que por sua vez depende de
+    # company.income_account_id/expense_account_id setados pelo chart -
+    # causa raiz e fix estao documentados em l10n_py/models/template_py.py
+    # (_get_py_res_company). Nao e regressao do 19.0, e bug pre-existente no
+    # chart py que so nao aparecia em base.main_company (essa ja herdava os
+    # campos de um chart generico instalado antes).
+    for fname in (
+        "demo/product_product_demo.xml",
+        "demo/account_customer_invoice_demo.xml",
+        "demo/account_supplier_invoice_demo.xml",
+    ):
         _logger.info("l10n_py_account: cargando demo %s", fname)
         convert_file(
             env,
