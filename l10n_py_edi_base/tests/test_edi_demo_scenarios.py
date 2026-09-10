@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+from odoo import Command
 from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
@@ -50,7 +51,7 @@ class TestEdiDemoScenarios(TransactionCase):
                     "code": "110001",
                     "account_type": "asset_receivable",
                     "reconcile": True,
-                    "company_ids": [(6, 0, [cls.company.id])],
+                    "company_ids": [Command.link(cls.company.id)],
                 }
             )
 

@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+from odoo import Command
 from odoo.exceptions import UserError
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
@@ -59,7 +60,7 @@ class TestAccountMove(TransactionCase):
                     "name": "Ingresos por Ventas",
                     "code": "400001",
                     "account_type": "income",
-                    "company_ids": [(6, 0, [cls.company.id])],
+                    "company_ids": [Command.link(cls.company.id)],
                 }
             )
 
@@ -77,7 +78,7 @@ class TestAccountMove(TransactionCase):
                     "code": "110001",
                     "account_type": "asset_receivable",
                     "reconcile": True,
-                    "company_ids": [(6, 0, [cls.company.id])],
+                    "company_ids": [Command.link(cls.company.id)],
                 }
             )
 
@@ -121,32 +122,91 @@ class TestAccountMove(TransactionCase):
         )
 
         # Impuestos (incluidos en el precio para SIFEN)
-        cls.tax_10 = cls.Tax.create(
-            {
-                "name": "IVA 10% Test",
-                "amount": 10.0,
-                "amount_type": "percent",
-                "type_tax_use": "sale",
-                "price_include_override": "tax_included",
-            }
+        # El chart de cuentas PY ya provee impuestos "IVA 10%"/"IVA 5%"/
+        # "Exento" para type_tax_use=sale — referenciarlos en vez de
+        # duplicarlos (el nombre debe ser único por compañía/tipo/país).
+        cls.tax_10 = cls.Tax.search(
+            [
+                ("name", "=", "IVA 10%"),
+                ("type_tax_use", "=", "sale"),
+                ("company_id", "=", cls.company.id),
+            ],
+            limit=1,
         )
-        cls.tax_5 = cls.Tax.create(
-            {
-                "name": "IVA 5% Test",
-                "amount": 5.0,
-                "amount_type": "percent",
-                "type_tax_use": "sale",
-                "price_include_override": "tax_included",
-            }
+        if not cls.tax_10:
+            cls.tax_10 = cls.Tax.create(
+                {
+                    "name": "IVA 10%",
+                    "amount": 10.0,
+                    "amount_type": "percent",
+                    "type_tax_use": "sale",
+                    "company_id": cls.company.id,
+                    "price_include_override": "tax_included",
+                }
+            )
+        else:
+            cls.tax_10.price_include_override = "tax_included"
+
+        cls.tax_5 = cls.Tax.search(
+            [
+                ("name", "=", "IVA 5%"),
+                ("type_tax_use", "=", "sale"),
+                ("company_id", "=", cls.company.id),
+            ],
+            limit=1,
         )
-        cls.tax_exempt = cls.Tax.create(
-            {
-                "name": "Exento Test",
-                "amount": 0.0,
-                "amount_type": "percent",
-                "type_tax_use": "sale",
-            }
+        if not cls.tax_5:
+            cls.tax_5 = cls.Tax.create(
+                {
+                    "name": "IVA 5%",
+                    "amount": 5.0,
+                    "amount_type": "percent",
+                    "type_tax_use": "sale",
+                    "company_id": cls.company.id,
+                    "price_include_override": "tax_included",
+                }
+            )
+        else:
+            cls.tax_5.price_include_override = "tax_included"
+
+        cls.tax_exempt = cls.Tax.search(
+            [
+                ("name", "=", "Exento"),
+                ("type_tax_use", "=", "sale"),
+                ("company_id", "=", cls.company.id),
+            ],
+            limit=1,
         )
+        if not cls.tax_exempt:
+            cls.tax_exempt = cls.Tax.create(
+                {
+                    "name": "Exento",
+                    "amount": 0.0,
+                    "amount_type": "percent",
+                    "type_tax_use": "sale",
+                    "company_id": cls.company.id,
+                }
+            )
+
+        cls.tax_exonerado = cls.Tax.search(
+            [
+                ("name", "=", "Exonerado Test"),
+                ("type_tax_use", "=", "sale"),
+                ("company_id", "=", cls.company.id),
+            ],
+            limit=1,
+        )
+        if not cls.tax_exonerado:
+            cls.tax_exonerado = cls.Tax.create(
+                {
+                    "name": "Exonerado Test",
+                    "amount": 0.0,
+                    "amount_type": "percent",
+                    "type_tax_use": "sale",
+                    "company_id": cls.company.id,
+                    "l10n_py_iva_affectation": "2",
+                }
+            )
 
         # Productos
         cls.product_10 = cls.Product.create(
@@ -168,6 +228,13 @@ class TestAccountMove(TransactionCase):
                 "name": "Producto Exento",
                 "list_price": 100.0,
                 "taxes_id": [(6, 0, [cls.tax_exempt.id])],
+            }
+        )
+        cls.product_exonerado = cls.Product.create(
+            {
+                "name": "Producto Exonerado",
+                "list_price": 100.0,
+                "taxes_id": [(6, 0, [cls.tax_exonerado.id])],
             }
         )
 
@@ -280,7 +347,7 @@ class TestAccountMove(TransactionCase):
                     "code": "210001",
                     "account_type": "liability_payable",
                     "reconcile": True,
-                    "company_ids": [(6, 0, [self.company.id])],
+                    "company_ids": [Command.link(self.company.id)],
                 }
             )
 
@@ -297,7 +364,7 @@ class TestAccountMove(TransactionCase):
                     "name": "Gastos",
                     "code": "500001",
                     "account_type": "expense",
-                    "company_ids": [(6, 0, [self.company.id])],
+                    "company_ids": [Command.link(self.company.id)],
                 }
             )
 
@@ -378,6 +445,26 @@ class TestAccountMove(TransactionCase):
         )
         self.assertAlmostEqual(invoice.l10n_py_amount_exempt, 100000.0, places=0)
         self.assertEqual(invoice.l10n_py_amount_iva_total, 0.0)
+
+    def test_iva_exonerado(self):
+        """Task 7: Afectación 2 (exonerado) → l10n_py_amount_exonerado, no exempt"""
+        invoice = self._create_invoice(
+            products_prices=[
+                (self.product_exonerado, self.tax_exonerado, 100000.0),
+            ]
+        )
+        self.assertAlmostEqual(invoice.l10n_py_amount_exonerado, 100000.0, places=0)
+        self.assertEqual(invoice.l10n_py_amount_exempt, 0.0)
+
+    def test_iva_exempt_not_exonerado(self):
+        """Task 7: Afectación 3 (exento) → l10n_py_amount_exempt, no exonerado"""
+        invoice = self._create_invoice(
+            products_prices=[
+                (self.product_exempt, self.tax_exempt, 100000.0),
+            ]
+        )
+        self.assertAlmostEqual(invoice.l10n_py_amount_exempt, 100000.0, places=0)
+        self.assertEqual(invoice.l10n_py_amount_exonerado, 0.0)
 
     def test_iva_mixed_rates(self):
         """F09: Cenário com 4 itens — verificar F003 até F020"""
