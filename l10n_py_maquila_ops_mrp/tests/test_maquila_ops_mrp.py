@@ -216,7 +216,10 @@ class TestMaquilaOpsMrp(TransactionCase):
         self.assertEqual(wiz.national_cost, 60)
         self.assertEqual(wiz.van_amount, 7980)
         self.assertEqual(wiz.tum_base, wiz.van_amount)
-        self.assertEqual(wiz.tum_amount, wiz.tum_base * wiz.tum_rate / 100)
+        self.assertEqual(
+            wiz.tum_amount,
+            wiz.currency_id.round(wiz.tum_base * wiz.tum_rate / 100),
+        )
 
     def test_action_compute_export_above_van(self):
         self.program.analytic_account_id = self.analytic.id

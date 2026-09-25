@@ -296,7 +296,14 @@ class TestMaquilaOps(TransactionCase):
         vat10 = (
             self.env["account.tax"]
             .with_company(company)
-            .search([("type_tax_use", "=", "sale"), ("amount", "=", 10)], limit=1)
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("type_tax_use", "=", "sale"),
+                    ("amount", "=", 10),
+                ],
+                limit=1,
+            )
         )
         self.assertTrue(vat10, "the l10n_py chart must provide a 10% sale tax")
 
@@ -354,7 +361,14 @@ class TestMaquilaOps(TransactionCase):
         vat10_c2 = (
             self.env["account.tax"]
             .with_company(company2)
-            .search([("type_tax_use", "=", "sale"), ("amount", "=", 10)], limit=1)
+            .search(
+                [
+                    ("company_id", "=", company2.id),
+                    ("type_tax_use", "=", "sale"),
+                    ("amount", "=", 10),
+                ],
+                limit=1,
+            )
         )
         order2 = self._maquila_export_order(company2, program2)
 
