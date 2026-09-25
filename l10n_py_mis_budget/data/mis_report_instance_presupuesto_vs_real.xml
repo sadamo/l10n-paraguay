@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Copyright 2026 KMEE
+     License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+
+     Instancia "Presupuesto vs Real" sobre el Estado de Resultados (RG 49/14):
+     columna orçado (mis_budget), columna realizado (actuals) y dos columnas
+     de variación (cmpcol porcentual, sumcol absoluto en Guaraníes).
+
+     no_auto_expand_accounts=True: sin esto, las KPIs de los grupos 4, 5, 10 y
+     11 (auto_expand_accounts=True en el módulo base) generarían detalle por
+     cuenta en la columna realizado mientras la columna orçado (aep=None,
+     MisBudgetAwareExpressionEvaluator) nunca genera esas líneas -> grid
+     inconsistente entre columnas. Con no_auto_expand_accounts=True se
+     suprime la expansión por cuenta en las dos columnas para esta instancia
+     específicamente: cuentas como Contador (11.04) y Energía (11.06)
+     aparecen agregadas en la línea ga_otros, tanto en el orçado como en el
+     realizado. El detalle por cuenta sigue disponible en las instancias de
+     realizado puro (Balance/Flujo), no en esta.
+-->
+<odoo noupdate="1">
+    <record id="mis_instance_presupuesto_vs_real_py" model="mis.report.instance">
+        <field name="name">Presupuesto vs Real</field>
+        <field
+            name="description"
+        >Estado de Resultados - Presupuesto vs Real (RG 49/14)</field>
+        <field
+            name="report_id"
+            ref="l10n_py_mis_report.mis_report_estado_resultados_py"
+        />
+        <field name="target_move">posted</field>
+        <field name="widget_show_pivot_date" eval="True" />
+        <field name="no_auto_expand_accounts" eval="True" />
+    </record>
+
+    <record id="mis_instance_pvr_py_p_presupuesto" model="mis.report.instance.period">
+        <field name="report_instance_id" ref="mis_instance_presupuesto_vs_real_py" />
+        <field name="name">Presupuesto</field>
+        <field name="mode">relative</field>
+        <field name="type">y</field>
+        <field name="offset">0</field>
+        <field name="duration">1</field>
+        <field name="source">mis_budget</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="mis_instance_pvr_py_p_real" model="mis.report.instance.period">
+        <field name="report_instance_id" ref="mis_instance_presupuesto_vs_real_py" />
+        <field name="name">Real</field>
+        <field name="mode">relative</field>
+        <field name="type">y</field>
+        <field name="offset">0</field>
+        <field name="duration">1</field>
+        <field name="source">actuals</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <!-- Variación % = (presupuesto - real) / abs(real) -->
+    <record id="mis_instance_pvr_py_p_variacion_pct" model="mis.report.instance.period">
+        <field name="report_instance_id" ref="mis_instance_presupuesto_vs_real_py" />
+        <field name="name">Variación %</field>
+        <field name="mode">none</field>
+        <field name="source">cmpcol</field>
+        <field name="source_cmpcol_from_id" ref="mis_instance_pvr_py_p_real" />
+        <field name="source_cmpcol_to_id" ref="mis_instance_pvr_py_p_presupuesto" />
+        <field name="sequence">30</field>
+    </record>
+
+    <!-- Variación absoluta (Gs.) = presupuesto - real -->
+    <record id="mis_instance_pvr_py_p_variacion_gs" model="mis.report.instance.period">
+        <field name="report_instance_id" ref="mis_instance_presupuesto_vs_real_py" />
+        <field name="name">Variación (Gs.)</field>
+        <field name="mode">none</field>
+        <field name="source">sumcol</field>
+        <field name="sequence">40</field>
+        <field
+            name="source_sumcol_ids"
+            eval="[
+            (0, 0, {
+                'period_to_sum_id': ref('mis_instance_pvr_py_p_presupuesto'),
+                'sign': '+',
+            }),
+            (0, 0, {
+                'period_to_sum_id': ref('mis_instance_pvr_py_p_real'),
+                'sign': '-',
+            }),
+        ]"
+        />
+    </record>
+</odoo>
