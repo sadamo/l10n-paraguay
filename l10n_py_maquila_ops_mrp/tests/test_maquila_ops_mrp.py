@@ -208,6 +208,7 @@ class TestMaquilaOpsMrp(TransactionCase):
         self._make_done_production()
         self._make_export_invoice(5000)
         wiz = self._make_tum_wizard()
+        wiz.currency_id = self.company.currency_id.id
         wiz.action_compute()
         self.assertFalse(wiz.van_warning)
         self.assertEqual(wiz.total_cost, 8000)
@@ -230,6 +231,7 @@ class TestMaquilaOpsMrp(TransactionCase):
         self._make_done_production()
         self._make_export_invoice(10000)
         wiz = self._make_tum_wizard()
+        wiz.currency_id = self.company.currency_id.id
         wiz.action_compute()
         self.assertEqual(wiz.van_amount, 7980)
         self.assertEqual(wiz.tum_base, wiz.export_invoice_amount)
