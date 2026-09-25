@@ -82,12 +82,18 @@
          2 more mis.report.instance.period.sum rows for the same period,
          silently doubling/tripling "Variación (Gs.)" on any environment
          where the module gets reinstalled more than once. -->
-    <record id="mis_instance_pvr_py_p_variacion_gs_sum_presupuesto" model="mis.report.instance.period.sum">
+    <record
+        id="mis_instance_pvr_py_p_variacion_gs_sum_presupuesto"
+        model="mis.report.instance.period.sum"
+    >
         <field name="period_id" ref="mis_instance_pvr_py_p_variacion_gs" />
         <field name="period_to_sum_id" ref="mis_instance_pvr_py_p_presupuesto" />
         <field name="sign">+</field>
     </record>
-    <record id="mis_instance_pvr_py_p_variacion_gs_sum_real" model="mis.report.instance.period.sum">
+    <record
+        id="mis_instance_pvr_py_p_variacion_gs_sum_real"
+        model="mis.report.instance.period.sum"
+    >
         <field name="period_id" ref="mis_instance_pvr_py_p_variacion_gs" />
         <field name="period_to_sum_id" ref="mis_instance_pvr_py_p_real" />
         <field name="sign">-</field>
