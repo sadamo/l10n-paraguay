@@ -40,6 +40,11 @@ class SaleOrder(models.Model):
             # which maps IVA to the exonerated tax). Keep it instead of
             # overwriting it with the maquila position below, which has no
             # tax mapping of its own and would leave the VAT untouched.
+            # Defensively (re)build its exoneration mapping too: the guard
+            # inside _ensure_maquila_exoneration_mapping is a no-op when the
+            # position already has tax_ids, so this only fills the gap when
+            # the auto-detected position was created/loaded without one.
+            self._ensure_maquila_exoneration_mapping(self.fiscal_position_id, company)
             return
         fp = self._get_maquila_export_fiscal_position(company)
         if fp:

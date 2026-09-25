@@ -302,8 +302,19 @@ class TestMaquilaOps(TransactionCase):
 
         order = self._maquila_export_order(company, program)
 
-        self.assertEqual(order.fiscal_position_id.name, "Ventas - Exportación")
+        self.assertEqual(
+            order.fiscal_position_id.name,
+            "Ventas - Exportación",
+            "the export order must keep the chart's auto-detected fiscal "
+            "position, not the maquila one",
+        )
         mapped = order.fiscal_position_id.map_tax(vat10)
+        self.assertNotEqual(
+            mapped,
+            vat10,
+            "the fiscal position has no mapping for the 10%% VAT tax, so "
+            "map_tax returned it unchanged instead of the exonerated tax",
+        )
         self.assertEqual(
             mapped.l10n_py_iva_affectation,
             "2",
@@ -347,6 +358,18 @@ class TestMaquilaOps(TransactionCase):
         )
         order2 = self._maquila_export_order(company2, program2)
 
-        self.assertEqual(order2.fiscal_position_id.name, "Ventas - Exportación")
+        self.assertEqual(
+            order2.fiscal_position_id.name,
+            "Ventas - Exportación",
+            "company2's export order must resolve its own auto-detected "
+            "fiscal position",
+        )
         mapped = order2.fiscal_position_id.map_tax(vat10_c2)
+        self.assertNotEqual(
+            mapped,
+            vat10_c2,
+            "company2's fiscal position has no mapping for its 10%% VAT "
+            "tax, so map_tax returned it unchanged instead of the "
+            "exonerated tax",
+        )
         self.assertEqual(mapped.l10n_py_iva_affectation, "2")
