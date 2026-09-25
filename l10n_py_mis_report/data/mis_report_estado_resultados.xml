@@ -157,8 +157,9 @@
     <!-- ============ COSTO DE VENTAS ============ -->
     <!-- Grupo 5: KPI-hoja atómica, no es uno de los 3 padres reescritos
          (Requisito 2b) -> gana budgetable/auto_expand_accounts directamente,
-         sin reestructuración. Expresión normalizada de -balp[5%] a
-         -balp[5.%] (AC6: ningún prefijo crudo de 1 dígito sin separador). -->
+         sin reestructuración. Expresión con separador "." tras el prefijo de
+         1 dígito del grupo raíz (AC6: ningún prefijo crudo de 1 dígito sin
+         separador). -->
 
     <record id="er_py_costo_ventas" model="mis.report.kpi">
         <field name="sequence">200</field>
