@@ -30,13 +30,21 @@
     </record>
 
     <!-- ============ INGRESOS OPERATIVOS ============ -->
+    <!-- Grupo 4: 100% cubierto por los 6 KPIs-hoja actuales (evidencia:
+         l10n_py/data/template/account.account-py.csv) -> no se crea residual
+         nueva aquí (a diferencia de los grupos 10 y 11). El KPI-padre pasa a
+         ser una suma de expresión pura de sus hijos, sin término residual.
+         Presupuesto/mis_budget: las 6 hojas son budgetable=True y conservan
+         auto_expand_accounts=True (Tarea 002, detalle por cuenta). -->
 
     <record id="er_py_ingresos_operativos" model="mis.report.kpi">
         <field name="sequence">100</field>
         <field name="report_id" ref="mis_report_estado_resultados_py" />
         <field name="description">INGRESOS OPERATIVOS</field>
         <field name="name">ingresos_operativos</field>
-        <field name="expression">-balp[4%]</field>
+        <field
+            name="expression"
+        >ventas_mercaderias + ventas_agricolas + exportaciones + ventas_servicios + ventas_regimenes_especiales + descuentos_devoluciones</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
         <field name="style_id" ref="mis_report_style_l10n_py_subtotal" />
@@ -50,6 +58,8 @@
         <field name="expression">-balp[4.01%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <record id="er_py_ventas_agricolas" model="mis.report.kpi">
@@ -64,6 +74,8 @@
         >-balp[4.02%] - balp[4.03%] - balp[4.04%] - balp[4.05%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <record id="er_py_exportaciones" model="mis.report.kpi">
@@ -74,6 +86,8 @@
         <field name="expression">-balp[4.06%] - balp[4.07%] - balp[4.08%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <record id="er_py_ventas_servicios" model="mis.report.kpi">
@@ -84,6 +98,8 @@
         <field name="expression">-balp[4.09%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <record id="er_py_ventas_regimenes_especiales" model="mis.report.kpi">
@@ -96,6 +112,8 @@
         <field name="expression">-balp[4.10%] - balp[4.11%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <record id="er_py_descuentos_devoluciones" model="mis.report.kpi">
@@ -106,6 +124,8 @@
         <field name="expression">-balp[4.98%] - balp[4.99%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <!-- Ingresos sector agrícola (clase 7.01) -->
@@ -120,6 +140,7 @@
         <field name="expression">-balp[7.01%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
     </record>
 
     <record id="er_py_total_ingresos" model="mis.report.kpi">
@@ -134,16 +155,22 @@
     </record>
 
     <!-- ============ COSTO DE VENTAS ============ -->
+    <!-- Grupo 5: KPI-hoja atómica, no es uno de los 3 padres reescritos
+         (Requisito 2b) -> gana budgetable/auto_expand_accounts directamente,
+         sin reestructuración. Expresión normalizada de -balp[5%] a
+         -balp[5.%] (AC6: ningún prefijo crudo de 1 dígito sin separador). -->
 
     <record id="er_py_costo_ventas" model="mis.report.kpi">
         <field name="sequence">200</field>
         <field name="report_id" ref="mis_report_estado_resultados_py" />
         <field name="description">COSTO DE VENTAS</field>
         <field name="name">costo_ventas</field>
-        <field name="expression">-balp[5%]</field>
+        <field name="expression">-balp[5.%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
         <field name="style_id" ref="mis_report_style_l10n_py_subtotal" />
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <record id="er_py_costo_agricola" model="mis.report.kpi">
@@ -156,6 +183,7 @@
         <field name="expression">-balp[7.02%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
     </record>
 
     <!-- ============ RESULTADO BRUTO ============ -->
@@ -172,13 +200,20 @@
     </record>
 
     <!-- ============ GASTOS COMERCIALES (clase 10) ============ -->
+    <!-- Grupo 10: gap real de cobertura (cuenta 10.99, sin hijo actual) ->
+         gana residual nueva er_py_gc_otros. GATE 2 (Daniel, 25/09): el grupo
+         10 también gana detalle por cuenta -> auto_expand_accounts=True en
+         gc_personal, gc_comisiones_publicidad y gc_otros, igual que en los
+         grupos 4, 5 y 11 (revierte la exclusión original del diseño). -->
 
     <record id="er_py_gastos_comerciales" model="mis.report.kpi">
         <field name="sequence">400</field>
         <field name="report_id" ref="mis_report_estado_resultados_py" />
         <field name="description">GASTOS COMERCIALES (Ventas)</field>
         <field name="name">gastos_comerciales</field>
-        <field name="expression">-balp[10%]</field>
+        <field
+            name="expression"
+        >gc_personal + gc_comisiones_publicidad + gc_otros</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
         <field name="style_id" ref="mis_report_style_l10n_py_subtotal" />
@@ -194,6 +229,8 @@
         <field name="expression">-balp[10.01%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <record id="er_py_gc_comisiones" model="mis.report.kpi">
@@ -206,16 +243,35 @@
         >-balp[10.02%] - balp[10.03%] - balp[10.04%] - balp[10.05%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
+    </record>
+
+    <record id="er_py_gc_otros" model="mis.report.kpi">
+        <field name="sequence">425</field>
+        <field name="report_id" ref="mis_report_estado_resultados_py" />
+        <field name="description">Otros Gastos Comerciales</field>
+        <field name="name">gc_otros</field>
+        <field name="expression">-balp[10.99%]</field>
+        <field name="type">num</field>
+        <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <!-- ============ GASTOS ADMINISTRATIVOS (clase 11) ============ -->
+
+    <!-- Grupo 11: gap real de cobertura (11.03/11.04/11.06/11.1x sin hijo
+         actual, ejemplo literal del Requisito 2b) -> gana residual nueva
+         er_py_ga_otros, con auto_expand_accounts=True (grupo listado en el
+         Requisito 2c/AC8). -->
 
     <record id="er_py_gastos_administrativos" model="mis.report.kpi">
         <field name="sequence">500</field>
         <field name="report_id" ref="mis_report_estado_resultados_py" />
         <field name="description">GASTOS ADMINISTRATIVOS</field>
         <field name="name">gastos_administrativos</field>
-        <field name="expression">-balp[11%]</field>
+        <field name="expression">ga_personal + ga_servicios + ga_otros</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
         <field name="style_id" ref="mis_report_style_l10n_py_subtotal" />
@@ -229,6 +285,8 @@
         <field name="expression">-balp[11.01%] - balp[11.02%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <record id="er_py_ga_servicios" model="mis.report.kpi">
@@ -243,6 +301,24 @@
         >-balp[11.05%] - balp[11.07%] - balp[11.08%] - balp[11.09%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
+    </record>
+
+    <record id="er_py_ga_otros" model="mis.report.kpi">
+        <field name="sequence">525</field>
+        <field name="report_id" ref="mis_report_estado_resultados_py" />
+        <field
+            name="description"
+        >Otros Gastos Administrativos (Contador, Energía, etc.)</field>
+        <field name="name">ga_otros</field>
+        <field
+            name="expression"
+        >-balp[11.03%] - balp[11.04%] - balp[11.06%] - balp[11.1%]</field>
+        <field name="type">num</field>
+        <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
+        <field name="auto_expand_accounts" eval="True" />
     </record>
 
     <!-- ============ RESULTADO OPERATIVO ============ -->
@@ -267,9 +343,10 @@
         <field name="report_id" ref="mis_report_estado_resultados_py" />
         <field name="description">Ingresos Financieros</field>
         <field name="name">ingresos_financieros</field>
-        <field name="expression">-balp[8%]</field>
+        <field name="expression">-balp[8.%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
     </record>
 
     <record id="er_py_gastos_financieros" model="mis.report.kpi">
@@ -282,6 +359,7 @@
         <field name="expression">-balp[13%]</field>
         <field name="type">num</field>
         <field name="compare_method">pct</field>
+        <field name="budgetable" eval="True" />
     </record>
 
     <record id="er_py_resultados_financieros" model="mis.report.kpi">
@@ -306,6 +384,7 @@
         <field name="type">num</field>
         <field name="compare_method">pct</field>
         <field name="style_id" ref="mis_report_style_l10n_py_subtotal" />
+        <field name="budgetable" eval="True" />
     </record>
 
     <!-- ============ DEPRECIACIONES Y AMORTIZACIONES ============ -->
@@ -319,6 +398,7 @@
         <field name="type">num</field>
         <field name="compare_method">pct</field>
         <field name="style_id" ref="mis_report_style_l10n_py_subtotal" />
+        <field name="budgetable" eval="True" />
     </record>
 
     <!-- ============ RESULTADO ANTES DE IMPUESTOS ============ -->
@@ -332,6 +412,7 @@
         <field name="type">num</field>
         <field name="compare_method">pct</field>
         <field name="style_id" ref="mis_report_style_l10n_py_subtotal" />
+        <field name="budgetable" eval="True" />
     </record>
 
     <record id="er_py_resultado_antes_impuestos" model="mis.report.kpi">
@@ -358,6 +439,7 @@
         <field name="type">num</field>
         <field name="compare_method">pct</field>
         <field name="style_id" ref="mis_report_style_l10n_py_subtotal" />
+        <field name="budgetable" eval="True" />
     </record>
 
     <!-- ============ RESULTADO DEL EJERCICIO ============ -->

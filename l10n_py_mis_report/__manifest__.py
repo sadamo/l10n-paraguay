@@ -5,7 +5,7 @@
     "name": "Paraguay - Informes Contables MIS",
     "summary": "Balance General, Estado de Resultados y Flujo de Efectivo "
     "(RG 49/14) con MIS Builder",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "category": "Accounting/Localizations/Reporting",
     "author": "KMEE, Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/l10n-paraguay",
