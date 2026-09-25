@@ -10,7 +10,7 @@ class AccountChartTemplate(models.AbstractModel):
     _inherit = "account.chart.template"
 
     @template("py", "account.fiscal.position")
-    def _get_py_maquila_account_fiscal_position(self, template_code):
+    def _get_py_maquila_account_fiscal_position(self):
         """Provide the "Maquila - Exportacion Exenta" fiscal position, with
         its IVA -> exonerado tax mapping, as chart template data for the
         'py' template.
@@ -22,5 +22,5 @@ class AccountChartTemplate(models.AbstractModel):
         onchange, which is never allowed to write to the database.
         """
         return self._parse_csv(
-            template_code, "account.fiscal.position", module="l10n_py_maquila_ops"
+            "py", "account.fiscal.position", module="l10n_py_maquila_ops"
         )
