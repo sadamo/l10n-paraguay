@@ -309,3 +309,44 @@ class TestMaquilaOps(TransactionCase):
             "2",
             "a maquila export must end with exonerated VAT, not 10%",
         )
+
+    def test_maquila_export_fiscal_position_per_company(self):
+        """The maquila onchange must not crash with "Incompatible companies"
+        for a second company, and must resolve exonerated VAT for it too."""
+        company1 = self._py_chart_company("PY Maquila Export Co A")
+        company2 = self._py_chart_company("PY Maquila Export Co B")
+        program1 = self.env["l10n_py.maquila.program"].create(
+            {
+                "name": "Export FP Program A",
+                "code": "RES-BIM-OPS-FP2",
+                "maquila_type": "pura",
+                "matriz_partner_id": self.matriz.id,
+                "company_id": company1.id,
+                "state": "active",
+            }
+        )
+        program2 = self.env["l10n_py.maquila.program"].create(
+            {
+                "name": "Export FP Program B",
+                "code": "RES-BIM-OPS-FP3",
+                "maquila_type": "pura",
+                "matriz_partner_id": self.matriz.id,
+                "company_id": company2.id,
+                "state": "active",
+            }
+        )
+
+        # First company claims/uses the maquila fiscal position...
+        self._maquila_export_order(company1, program1)
+        # ...a second company must not raise "Incompatible companies" and
+        # must resolve its own exonerated VAT mapping.
+        vat10_c2 = (
+            self.env["account.tax"]
+            .with_company(company2)
+            .search([("type_tax_use", "=", "sale"), ("amount", "=", 10)], limit=1)
+        )
+        order2 = self._maquila_export_order(company2, program2)
+
+        self.assertEqual(order2.fiscal_position_id.name, "Ventas - Exportación")
+        mapped = order2.fiscal_position_id.map_tax(vat10_c2)
+        self.assertEqual(mapped.l10n_py_iva_affectation, "2")
