@@ -387,3 +387,91 @@ class TestMaquilaOps(TransactionCase):
             "exonerated tax",
         )
         self.assertEqual(mapped.l10n_py_iva_affectation, "2")
+
+    def _domestic_partner(self):
+        return self.env["res.partner"].create(
+            {"name": "PY Domestic Customer", "country_id": self.py.id}
+        )
+
+    def test_maquila_domestic_sale_gets_maquila_position_with_exoneration(self):
+        """A domestic maquila sale (non-foreign partner, no auto-detected
+        export position) must be assigned the chart-provided "Maquila -
+        Exportacion Exenta" fiscal position, with its VAT -> exonerado
+        mapping already in place."""
+        company = self._py_chart_company("PY Maquila Domestic Co")
+        program = self.env["l10n_py.maquila.program"].create(
+            {
+                "name": "Domestic FP Program",
+                "code": "RES-BIM-OPS-FP4",
+                "maquila_type": "pura",
+                "matriz_partner_id": self.matriz.id,
+                "company_id": company.id,
+                "state": "active",
+            }
+        )
+        vat10 = (
+            self.env["account.tax"]
+            .with_company(company)
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("type_tax_use", "=", "sale"),
+                    ("amount", "=", 10),
+                ],
+                limit=1,
+            )
+        )
+        order = self.env["sale.order"].create(
+            {"partner_id": self._domestic_partner().id, "company_id": company.id}
+        )
+        order.l10n_py_maquila_program_id = program
+        order._onchange_maquila_program()
+
+        self.assertEqual(
+            order.fiscal_position_id.name,
+            "Maquila - Exportacion Exenta",
+            "a domestic maquila sale must get the chart's maquila position",
+        )
+        mapped = order.fiscal_position_id.map_tax(vat10)
+        self.assertEqual(mapped.l10n_py_iva_affectation, "2")
+
+    def test_onchange_maquila_program_creates_no_fiscal_position(self):
+        """The onchange must never create account.fiscal.position or
+        account.fiscal.position.tax records: it can only read/assign
+        records already provided by the chart template data."""
+        company = self._py_chart_company("PY Maquila No Create Co")
+        program = self.env["l10n_py.maquila.program"].create(
+            {
+                "name": "No Create FP Program",
+                "code": "RES-BIM-OPS-FP5",
+                "maquila_type": "pura",
+                "matriz_partner_id": self.matriz.id,
+                "company_id": company.id,
+                "state": "active",
+            }
+        )
+        order = self.env["sale.order"].create(
+            {"partner_id": self._domestic_partner().id, "company_id": company.id}
+        )
+        order.l10n_py_maquila_program_id = program
+
+        fp_count_before = self.env["account.fiscal.position"].search_count([])
+        fpt_count_before = self.env["account.fiscal.position.tax"].search_count([])
+        order._onchange_maquila_program()
+        fp_count_after = self.env["account.fiscal.position"].search_count([])
+        fpt_count_after = self.env["account.fiscal.position.tax"].search_count([])
+
+        self.assertEqual(
+            fp_count_before,
+            fp_count_after,
+            "the onchange must not create any account.fiscal.position",
+        )
+        self.assertEqual(
+            fpt_count_before,
+            fpt_count_after,
+            "the onchange must not create any account.fiscal.position.tax",
+        )
+        self.assertTrue(
+            order.fiscal_position_id,
+            "the maquila position must still be assigned from chart data",
+        )

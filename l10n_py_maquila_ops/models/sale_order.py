@@ -46,80 +46,21 @@ class SaleOrder(models.Model):
             self.fiscal_position_id = fp
 
     def _get_maquila_export_fiscal_position(self, company):
-        """Resolve (or create) the maquila export fiscal position for
-        ``company`` and make sure it maps the company's taxed sale taxes to
-        the exonerated one.
+        """Look up the "Maquila - Exportacion Exenta" fiscal position for
+        ``company``, already provided (with its tax mapping) by the 'py'
+        chart template data (see ``models/template_py.py``) — either loaded
+        when the company's chart was installed, or backfilled by this
+        module's ``post_init_hook`` for companies that already had the
+        chart.
 
-        Fiscal positions are company-specific records, so the position
-        cannot be a single hardcoded xmlid shared by every company (that
-        raises "Incompatible companies" for orders of any other company).
-        Instead, look it up (or create it) per company and build its tax
-        mapping from the company's own taxes.
+        This is read-only: an ``@api.onchange`` handler must never create or
+        write database records (it can fire on every form edit, even without
+        saving), so no fiscal position or tax mapping is created here.
         """
-        Position = self.env["account.fiscal.position"].sudo()
-        name = _("Maquila - Exportacion Exenta")
-        fp = Position.search(
-            [("name", "=", name), ("company_id", "=", company.id)], limit=1
+        return self.env.ref(
+            f"account.{company.id}_py_maquila_fiscal_position_export",
+            raise_if_not_found=False,
         )
-        if not fp:
-            template = self.env.ref(
-                "l10n_py_maquila_ops.fiscal_position_maquila_export",
-                raise_if_not_found=False,
-            )
-            if template and template.company_id.id in (False, company.id):
-                fp = template
-                if not fp.company_id:
-                    fp.company_id = company.id
-            else:
-                fp = Position.create(
-                    {
-                        "name": name,
-                        "company_id": company.id,
-                        "auto_apply": False,
-                        "note": template.note if template else False,
-                    }
-                )
-        self._ensure_maquila_exoneration_mapping(fp, company)
-        return fp
-
-    def _ensure_maquila_exoneration_mapping(self, fiscal_position, company):
-        """Populate ``fiscal_position`` with a mapping from the company's
-        taxed sale taxes (Gravado IVA) to its exonerated one, so orders
-        under this fiscal position end up with exonerated VAT instead of
-        losing the tax mapping entirely."""
-        if fiscal_position.tax_ids:
-            return
-        Tax = self.env["account.tax"].sudo()
-        if "l10n_py_iva_affectation" not in Tax._fields:
-            # l10n_py_account (which adds the IVA affectation field used to
-            # tell taxed and exonerated taxes apart) is not installed.
-            return
-        exonerado = Tax.search(
-            [
-                ("company_id", "=", company.id),
-                ("type_tax_use", "=", "sale"),
-                ("l10n_py_iva_affectation", "=", "2"),
-            ],
-            limit=1,
-        )
-        if not exonerado:
-            return
-        gravadas = Tax.search(
-            [
-                ("company_id", "=", company.id),
-                ("type_tax_use", "=", "sale"),
-                ("l10n_py_iva_affectation", "=", "1"),
-            ]
-        )
-        FiscalPositionTax = self.env["account.fiscal.position.tax"].sudo()
-        for tax in gravadas:
-            FiscalPositionTax.create(
-                {
-                    "position_id": fiscal_position.id,
-                    "tax_src_id": tax.id,
-                    "tax_dest_id": exonerado.id,
-                }
-            )
 
     def action_confirm(self):
         py_country = self.env.ref("base.py", raise_if_not_found=False)
