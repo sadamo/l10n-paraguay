@@ -1,6 +1,8 @@
 # Copyright 2026 KMEE
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
+from datetime import date, timedelta
+
 from odoo.exceptions import UserError
 from odoo.tests import Form, tagged
 from odoo.tests.common import TransactionCase
@@ -12,6 +14,47 @@ class TestMaquilaOpsMrp(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.company
+
+        # A valid "timbrado" (SET authorization) is required to post a sale
+        # invoice under l10n_py_account. Set one up the same way
+        # l10n_py_account/tests/test_account_move.py does.
+        cls.doc_type_invoice = cls.env["l10n_latam.document.type"].search(
+            [("country_id", "=", cls.env.ref("base.py").id), ("code", "=", "1")],
+            limit=1,
+        )
+        if not cls.doc_type_invoice:
+            cls.doc_type_invoice = cls.env["l10n_latam.document.type"].create(
+                {
+                    "name": "Factura",
+                    "code": "1",
+                    "country_id": cls.env.ref("base.py").id,
+                    "internal_type": "invoice",
+                }
+            )
+        cls.journal = cls.env["account.journal"].create(
+            {
+                "name": "Ventas Bridge Test",
+                "type": "sale",
+                "code": "VBT",
+                "company_id": cls.company.id,
+                "l10n_latam_use_documents": True,
+            }
+        )
+        today = date.today()
+        cls.authorization = cls.env["account.authorization"].create(
+            {
+                "name": "22334455",
+                "date_from": today - timedelta(days=30),
+                "date_to": today + timedelta(days=335),
+                "invoice_number_from": 1,
+                "invoice_number_to": 10000,
+                "establishment": "001",
+                "expedition_point": "001",
+                "l10n_latam_document_type_id": cls.doc_type_invoice.id,
+                "company_id": cls.company.id,
+            }
+        )
+
         cls.matriz = cls.env["res.partner"].create({"name": "Bridge Matriz"})
         cls.program = cls.env["l10n_py.maquila.program"].create(
             {
@@ -107,6 +150,8 @@ class TestMaquilaOpsMrp(TransactionCase):
                 "move_type": "out_invoice",
                 "partner_id": self.matriz.id,
                 "invoice_date": invoice_date,
+                "journal_id": self.journal.id,
+                "l10n_py_authorization_id": self.authorization.id,
                 "l10n_py_maquila_program_id": self.program.id,
                 "invoice_line_ids": [
                     (
