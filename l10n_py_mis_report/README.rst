@@ -30,13 +30,13 @@ Paraguay - Informes Contables MIS
 
 Plantillas MIS Builder para los informes contables paraguayos:
 
-- **Balance General**: Activo Corriente / No Corriente, Pasivo Corriente
-  / No Corriente, Patrimonio Neto.
-- **Estado de Resultados (RG 49/14)**: Ingresos Operativos, Costos,
-  Margen Bruto, Gastos Operativos, Resultados Financieros, Otros
-  Ingresos y Egresos, Impuesto a la Renta, Resultado del Ejercicio.
-- **Flujo de Efectivo (Indirecto)**: parte del resultado neto + ajustes
-  de partidas no monetarias y variaciones del capital de trabajo.
+-  **Balance General**: Activo Corriente / No Corriente, Pasivo
+   Corriente / No Corriente, Patrimonio Neto.
+-  **Estado de Resultados (RG 49/14)**: Ingresos Operativos, Costos,
+   Margen Bruto, Gastos Operativos, Resultados Financieros, Otros
+   Ingresos y Egresos, Impuesto a la Renta, Resultado del Ejercicio.
+-  **Flujo de Efectivo (Indirecto)**: parte del resultado neto + ajustes
+   de partidas no monetarias y variaciones del capital de trabajo.
 
 Las fórmulas usan los prefijos del Plan de Cuentas RG 49/14:
 
@@ -81,9 +81,9 @@ Usage
 2. Acceda a *Contabilidad -> Configuración -> MIS Builder -> Plantillas
    de Informes* y verifique que aparezcan:
 
-   - ``Balance General (Paraguay)``
-   - ``Estado de Resultados (Paraguay - RG 49/14)``
-   - ``Flujo de Efectivo - Método Indirecto (Paraguay)``
+   -  ``Balance General (Paraguay)``
+   -  ``Estado de Resultados (Paraguay - RG 49/14)``
+   -  ``Flujo de Efectivo - Método Indirecto (Paraguay)``
 
 3. Cree una *Instancia de Informe* (MIS Report Instance) seleccionando
    la plantilla, definiendo período y empresa.
@@ -116,7 +116,7 @@ Authors
 Contributors
 ------------
 
-- KMEE https://kmee.com.br
+-  KMEE https://kmee.com.br
 
 Maintainers
 -----------
