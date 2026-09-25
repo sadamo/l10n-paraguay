@@ -123,13 +123,34 @@ class TestMisReportPresupuestoVsReal(TransactionCase):
 
         cls._post_actuals()
 
+        # The assignment above only queues a dirty write in cache; without an
+        # explicit flush, env.clear() below discards it before it ever
+        # reaches the DB, leaving source_mis_budget_id empty for the rest of
+        # the tests and making the "Presupuesto" column resolve to
+        # AccountingNone (QA-01: real bug, not just a fixture issue).
+        cls.env.flush_all()
         cls.env.clear()
 
     @classmethod
     def _account(cls, code):
-        return cls.env["account.account"].search(
-            [("company_ids", "in", cls.company.id), ("code", "=", code)], limit=1
+        # "code" is company_dependent (code_store per company root, Odoo 18);
+        # it only resolves through the ORM when read/searched with the
+        # target company active, otherwise it evaluates to False and any
+        # domain on "code" silently matches nothing (QA-01).
+        account = (
+            cls.env["account.account"]
+            .with_company(cls.company)
+            .search(
+                [("company_ids", "in", cls.company.id), ("code", "=", code)], limit=1
+            )
         )
+        if not account:
+            raise AssertionError(
+                f"Nenhuma conta com código {code!r} encontrada para a company "
+                f"de teste {cls.company.display_name!r} (chart 'py' pode não "
+                "ter carregado essa conta)."
+            )
+        return account
 
     @classmethod
     def _post_actuals(cls):
@@ -139,7 +160,10 @@ class TestMisReportPresupuestoVsReal(TransactionCase):
         bank_account = cls._account("1.01.01.04")
         ventas_account = cls._account("4.01.01")
         costo_account = cls._account("5.01.01")
-        ga_servicios_account = cls._account("11.05")
+        # Real chart code for "ALQUILERES" is "11.050" (3-digit residual
+        # scheme for this subgroup), matched by the KPI's "balp[11.05%]"
+        # prefix expression.
+        ga_servicios_account = cls._account("11.050")
 
         # Real ventas_mercaderias = 1.000.000 (income: crédito > débito, y el
         # KPI usa -balp[] para mostrarlo positivo).
@@ -297,7 +321,9 @@ class TestMisReportPresupuestoVsReal(TransactionCase):
         """AC7: para cada um dos 3 KPIs-pai reescritos, os filhos (+residual)
         cobrem exatamente as contas reais do grupo, sem lacunas e sem
         sobreposição."""
-        Account = self.env["account.account"]
+        # See _account(): "code" is company_dependent and only resolves with
+        # the target company active (QA-01).
+        Account = self.env["account.account"].with_company(self.company)
         for parent_name, (group_prefix, child_names) in _PARENT_GROUPS.items():
             group_accounts = Account.search(
                 [
