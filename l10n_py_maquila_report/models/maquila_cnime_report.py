@@ -187,12 +187,12 @@ class MaquilaCnimeReport(models.Model):
                 incoming = move_line._read_group(
                     base + [("location_dest_id", "child_of", maquila_loc.id)],
                     ["product_id"],
-                    ["quantity:sum"],
+                    ["quantity_product_uom:sum"],
                 )
                 outgoing = move_line._read_group(
                     base + [("location_id", "child_of", maquila_loc.id)],
                     ["product_id"],
-                    ["quantity:sum"],
+                    ["quantity_product_uom:sum"],
                 )
                 balance = {}
                 for product, qty in incoming:

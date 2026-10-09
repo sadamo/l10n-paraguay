@@ -34,6 +34,7 @@ class TestMaquilaReport(TransactionCase):
             {
                 "name": "DI-REP-1",
                 "program_id": cls.program.id,
+                "date_admission": "2026-03-01",
                 "cnime_certificate": "CN-REP",
                 "amount_cif": 10000,
                 "line_ids": [
@@ -53,6 +54,7 @@ class TestMaquilaReport(TransactionCase):
             {
                 "name": "EXP-REP-1",
                 "program_id": cls.program.id,
+                "date_export": "2026-03-15",
                 "line_ids": [
                     (
                         0,
@@ -146,6 +148,53 @@ class TestMaquilaReport(TransactionCase):
         self._receive_in_maquila(
             7, f"{self.year + 1}-03-01 10:00:00"
         )  # after period_end
+        self.report.action_generate()
+        balance = {
+            line["product"]: line["quantity"]
+            for line in json.loads(self.report.stock_balance)
+        }
+        self.assertEqual(balance[self.product.name], 10)
+
+    def _move_in_maquila(self, qty, uom, date, outgoing=False):
+        loc = self.env.ref("l10n_py_maquila_ops.stock_location_maquila_admission")
+        other = self.env.ref(
+            "stock.stock_location_customers"
+            if outgoing
+            else "stock.stock_location_suppliers"
+        )
+        move = self.env["stock.move"].create(
+            {
+                "name": "rep uom move",
+                "product_id": self.product.id,
+                "product_uom_qty": qty,
+                "product_uom": uom.id,
+                "location_id": loc.id if outgoing else other.id,
+                "location_dest_id": other.id if outgoing else loc.id,
+                "company_id": self.company.id,
+            }
+        )
+        move._action_confirm()
+        move._action_assign()
+        move.quantity = qty
+        move.picked = True
+        move._action_done()
+        move.move_line_ids.write({"date": date})
+
+    def test_stock_balance_uses_product_uom(self):
+        """Receipts in boxes and consumption in units balance in the product
+        UoM: the lines are aggregated by quantity_product_uom, not by the raw
+        quantity of each line's own UoM."""
+        unit = self.product.uom_id
+        box = self.env["uom.uom"].create(
+            {
+                "name": "Rep Box x12",
+                "category_id": unit.category_id.id,
+                "uom_type": "bigger",
+                "factor_inv": 12,
+            }
+        )
+        self._move_in_maquila(1, box, "2026-06-01 10:00:00")  # 12 units in
+        self._move_in_maquila(2, unit, "2026-06-02 10:00:00", outgoing=True)
         self.report.action_generate()
         balance = {
             line["product"]: line["quantity"]
