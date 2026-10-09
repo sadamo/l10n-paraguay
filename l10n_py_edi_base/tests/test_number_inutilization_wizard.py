@@ -10,7 +10,7 @@ from odoo.tests.common import TransactionCase
 
 @tagged("post_install", "-at_install", "l10n_py")
 class TestNumberInutilizationWizard(TransactionCase):
-    """Testes do gap 3: wizard de inutilização a partir do timbrado (design 2026-08-18)."""
+    """Tests del wizard de inutilización de numeración desde el timbrado."""
 
     @classmethod
     def setUpClass(cls):

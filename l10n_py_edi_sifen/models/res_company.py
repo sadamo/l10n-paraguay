@@ -58,9 +58,10 @@ class ResCompany(models.Model):
                         cert_bytes, password
                     )
                     if cert is not None:
-                        not_after = getattr(
-                            cert, "not_valid_after_utc", None
-                        ) or cert.not_valid_after
+                        not_after = (
+                            getattr(cert, "not_valid_after_utc", None)
+                            or cert.not_valid_after
+                        )
                         expiry = not_after.date()
                 except Exception:
                     _logger.warning(

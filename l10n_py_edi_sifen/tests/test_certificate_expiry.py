@@ -10,6 +10,7 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography.x509.oid import NameOID
 
 from odoo.tests.common import TransactionCase, tagged
+from odoo.tools import mute_logger
 
 CERT_PASSWORD = "test1234"
 
@@ -38,9 +39,7 @@ def _build_pkcs12(not_valid_after, password=CERT_PASSWORD):
         key=key,
         cert=cert,
         cas=None,
-        encryption_algorithm=serialization.BestAvailableEncryption(
-            password.encode()
-        ),
+        encryption_algorithm=serialization.BestAvailableEncryption(password.encode()),
     )
     return base64.b64encode(pkcs12_bytes)
 
@@ -89,9 +88,9 @@ class TestCertificateExpiry(TransactionCase):
         # not_valid_after ontem (data de calendario anterior a hoje); a
         # janela de validade toda fica no passado para o teste ser estavel
         # independente da hora do dia em que rodar.
-        not_after = datetime.datetime.now(
-            datetime.timezone.utc
-        ) - datetime.timedelta(days=1)
+        not_after = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            days=1
+        )
         not_before = not_after - datetime.timedelta(days=2)
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         subject = issuer = x509.Name(
@@ -125,10 +124,10 @@ class TestCertificateExpiry(TransactionCase):
         )
         self.assertEqual(self.company.l10n_py_certificate_state, "expired")
 
+    @mute_logger("odoo.addons.l10n_py_edi_sifen.models.res_company")
     def test_compute_expiry_wrong_password_does_not_raise(self):
         cert_b64 = _build_pkcs12(
-            datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(days=30),
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30),
             password=CERT_PASSWORD,
         )
         self.company.write(
