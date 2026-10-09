@@ -333,14 +333,14 @@ class L10nPyEdiReceivedEvent(models.Model):
         except UserError as e:
             self.write({"state": "error", "error_message": str(e)})
             self._log_attempt(connector=connector, response=None, error=str(e))
-            self.env.flush_all()
-            raise
+            return self._notify_send_error(str(e))
         except Exception as e:
             _logger.error("Error enviando evento de receptor: %s", str(e))
             self.write({"state": "error", "error_message": str(e)})
             self._log_attempt(connector=connector, response=None, error=str(e))
-            self.env.flush_all()
-            raise UserError(_("Error enviando evento de receptor: %s") % str(e)) from e
+            return self._notify_send_error(
+                _("Error enviando evento de receptor: %s") % str(e)
+            )
 
         if response.get("success"):
             self.write(
@@ -357,6 +357,21 @@ class L10nPyEdiReceivedEvent(models.Model):
         self._log_attempt(connector=connector, response=response)
         self.env.flush_all()
         return True
+
+    def _notify_send_error(self, message):
+        """Return a notification instead of raising: an exception reaching the
+        user rolls the transaction back and the "error" state and the EDI log
+        would be lost (flush_all() does not commit)."""
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": _("Error al enviar el evento"),
+                "message": message,
+                "type": "danger",
+                "sticky": True,
+            },
+        }
 
     def action_reset_to_draft(self):
         """Reenviar: volver a borrador manteniendo los datos, para eventos

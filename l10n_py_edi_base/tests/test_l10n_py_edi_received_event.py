@@ -6,6 +6,9 @@ from odoo import Command
 from odoo.exceptions import UserError, ValidationError
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
+from odoo.tools import mute_logger
+
+from ..services.cdc_generator import CDCGenerator
 
 
 @tagged("post_install", "-at_install", "l10n_py")
@@ -22,8 +25,6 @@ class TestL10nPyEdiReceivedEvent(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.env = cls.env(context=dict(cls.env.context, tracking_disable=True))
-
-        from odoo.addons.l10n_py_edi_base.services.cdc_generator import CDCGenerator
 
         cls.CDCGenerator = CDCGenerator
 
@@ -257,6 +258,10 @@ class TestL10nPyEdiReceivedEvent(TransactionCase):
         self.assertTrue(logs)
         self.assertTrue(logs[0].success)
 
+    @mute_logger(
+        "odoo.addons.l10n_py_edi_base.models.l10n_py_edi_log",
+        "odoo.addons.l10n_py_edi_base.models.l10n_py_edi_received_event",
+    )
     def test_send_rejection_sets_rejected_with_message(self):
         event = self._create_event(
             event_type="conformidad",
@@ -272,7 +277,14 @@ class TestL10nPyEdiReceivedEvent(TransactionCase):
         self.assertIn("CDC no existe", event.error_message)
         self.assertFalse(event.protocolo_sifen)
 
+    @mute_logger(
+        "odoo.addons.l10n_py_edi_base.models.l10n_py_edi_log",
+        "odoo.addons.l10n_py_edi_base.models.l10n_py_edi_received_event",
+    )
     def test_send_transport_error_sets_error_state(self):
+        """A transport error must not raise: an exception reaching the user
+        rolls the transaction back and the error state and the EDI log would
+        be lost. The action returns a danger notification instead."""
         event = self._create_event(
             event_type="conformidad",
             tipo_conformidad="1",
@@ -282,23 +294,42 @@ class TestL10nPyEdiReceivedEvent(TransactionCase):
             "send_receiver_event",
             side_effect=ConnectionError("timeout mTLS"),
         ):
-            # No usamos self.assertRaises aquí a propósito: en Odoo,
-            # TransactionCase.assertRaises envuelve el bloque en un
-            # savepoint que se revierte al capturar la excepción esperada,
-            # lo que deshace el write(state='error') que queremos verificar
-            # a continuación. Un try/except simple preserva el efecto.
-            try:
-                event.action_send_receiver_event()
-            except UserError as exc:
-                self.assertIn("timeout mTLS", str(exc))
-            else:
-                self.fail("Se esperaba UserError")
+            result = event.action_send_receiver_event()
+        self.assertEqual(result["tag"], "display_notification")
+        self.assertEqual(result["params"]["type"], "danger")
+        self.assertIn("timeout mTLS", result["params"]["message"])
         self.assertEqual(event.state, "error")
         self.assertIn("timeout mTLS", event.error_message)
+        logs = self.env["l10n_py.edi.log"].search(
+            [("l10n_py_received_event_id", "=", event.id)]
+        )
+        self.assertTrue(logs)
+        self.assertFalse(logs[0].success)
 
         # Reenvío manual disponible después de un error.
         event.action_reset_to_draft()
         self.assertEqual(event.state, "draft")
+
+    def test_multi_company_rule_hides_events_of_other_company(self):
+        company_b = self.env["res.company"].create({"name": "Empresa B EDI"})
+        event_b = self._create_event(
+            company_id=company_b.id,
+            event_type="conformidad",
+            tipo_conformidad="1",
+        )
+        user_a = self.env["res.users"].create(
+            {
+                "name": "Usuario EDI A",
+                "login": "edi_received_user_a",
+                "email": "edi_received_user_a@example.com",
+                "company_id": self.company.id,
+                "company_ids": [Command.set([self.company.id])],
+                "groups_id": [Command.set([self.env.ref("base.group_user").id])],
+            }
+        )
+        events = self.env["l10n_py.edi.received.event"].with_user(user_a)
+        self.assertNotIn(event_b, events.search([]))
+        self.assertFalse(events.search([("id", "=", event_b.id)]))
 
     # ============== 8. Exclusividad de mérito ==============
 

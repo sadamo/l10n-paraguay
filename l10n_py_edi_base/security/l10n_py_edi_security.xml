@@ -5,4 +5,9 @@
         <field name="category_id" ref="base.module_category_accounting" />
         <field name="implied_ids" eval="[(4, ref('account.group_account_manager'))]" />
     </record>
+    <record id="l10n_py_edi_received_event_company_rule" model="ir.rule">
+        <field name="name">EDI received event: multi-company</field>
+        <field name="model_id" ref="model_l10n_py_edi_received_event" />
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>
