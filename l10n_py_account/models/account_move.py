@@ -189,9 +189,10 @@ class AccountMove(models.Model):
                         # Pular durante instalação/demo (invoices genéricas
                         # criadas pelo account.chart.template.try_loading)
                         continue
-                    # Reversiones llegan sin timbrado (copy=False): si existe
-                    # exactamente UNA faja vigente para el tipo de documento
-                    # (p.ej. la NC), usarla; ambigüedad sigue siendo elección
+                    # Cualquier out_invoice/out_refund sin timbrado (incluidas
+                    # las reversiones, que llegan sin timbrado por copy=False):
+                    # si existe exactamente UNA faja vigente para el tipo de
+                    # documento, usarla; ambigüedad sigue siendo elección
                     # humana.
                     candidatos = self.env["account.authorization"].search(
                         [
