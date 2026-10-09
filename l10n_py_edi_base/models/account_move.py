@@ -1477,14 +1477,17 @@ class AccountMove(models.Model):
                 )
             )
 
-        connector = to_process[0]._get_edi_connector()
-        max_lote = connector.get_max_batch_size() or 50
-
         chunk_count = 0
-        for start in range(0, len(to_process), max_lote):
-            chunk = to_process[start : start + max_lote]
-            chunk_count += 1
-            self._l10n_py_send_batch_chunk(chunk, connector, chunk_count)
+        # One connector (and certificate) per company: a batch never mixes
+        # documents of different companies.
+        for company in to_process.company_id:
+            company_docs = to_process.filtered(lambda m, c=company: m.company_id == c)
+            connector = company_docs[0]._get_edi_connector()
+            max_lote = connector.get_max_batch_size() or 50
+            for start in range(0, len(company_docs), max_lote):
+                chunk = company_docs[start : start + max_lote]
+                chunk_count += 1
+                self._l10n_py_send_batch_chunk(chunk, connector, chunk_count)
 
         return {
             "type": "ir.actions.client",

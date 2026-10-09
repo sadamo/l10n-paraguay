@@ -7,6 +7,7 @@ from odoo import Command
 from odoo.exceptions import UserError
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
+from odoo.tools import mute_logger
 
 _GET_EDI_CONNECTOR = (
     "odoo.addons.l10n_py_edi_base.models.account_move" ".AccountMove._get_edi_connector"
@@ -223,6 +224,7 @@ class TestEDIBatch(TransactionCase):
         self.assertEqual(call_sizes, [50, 50, 20])
         self.assertTrue(all(m.l10n_py_edi_status == "batch_sent" for m in moves))
 
+    @mute_logger("odoo.addons.l10n_py_edi_base.models.account_move")
     def test_action_send_edi_batch_ignora_docs_fora_de_to_send(self):
         """Documentos que no están en to_send no entran a ningún chunk."""
         move_to_send = self._create_move()
@@ -281,6 +283,7 @@ class TestEDIBatch(TransactionCase):
         self.assertEqual(move2.l10n_py_edi_batch_id, "123")
         self.assertEqual(move2.l10n_py_edi_status, "batch_sent")
 
+    @mute_logger("odoo.addons.l10n_py_edi_base.models.account_move")
     def test_send_batch_devuelve_menos_cdc_que_documentos_no_marca_excedentes(self):
         """cdc_list más corta que valid_moves -> excedentes quedan sin CDC.
 
@@ -309,6 +312,7 @@ class TestEDIBatch(TransactionCase):
         self.assertFalse(move2.l10n_py_cdc)
         self.assertEqual(move2.l10n_py_edi_status, "to_send")
 
+    @mute_logger("odoo.addons.l10n_py_edi_base.models.account_move")
     def test_send_batch_falla_de_transporte_no_marca_ningun_doc(self):
         """Excepción en el envío -> ningún doc del chunk queda batch_sent."""
         move1 = self._create_move()
@@ -437,6 +441,80 @@ class TestEDIBatch(TransactionCase):
         self.assertEqual(mock_apply.call_count, 2)
         self.assertEqual(called_batch_ids, ["PROT-A", "PROT-B"])
 
+    def test_cron_polls_sent_and_batch_sent_documents(self):
+        """The cron keeps its sent/processing/comm_error step (by CDC) next to
+        the batch_sent step (by batch protocol)."""
+        move_sent = self._create_move()
+        move_sent.write({"l10n_py_edi_status": "sent", "l10n_py_cdc": "CDC-SENT"})
+        move_batch = self._create_move()
+        move_batch.write(
+            {
+                "l10n_py_edi_status": "batch_sent",
+                "l10n_py_edi_batch_id": "PROT-C",
+                "l10n_py_cdc": "CDC-BATCH",
+            }
+        )
+        connector = self._mock_connector()
+        connector.check_status.return_value = {
+            "success": True,
+            "result": {"status": "Aprobado"},
+        }
+        with (
+            patch(_GET_EDI_CONNECTOR, return_value=connector),
+            patch(
+                "odoo.addons.l10n_py_edi_base.models.account_move"
+                ".AccountMove._l10n_py_apply_batch_status"
+            ) as mock_batch,
+            patch(
+                "odoo.addons.l10n_py_edi_base.models.account_move"
+                ".AccountMove._generate_kude"
+            ),
+        ):
+            self.env["account.move"]._cron_check_edi_status()
+        connector.check_status.assert_any_call("CDC-SENT")
+        self.assertEqual(move_sent.l10n_py_edi_status, "accepted")
+        mock_batch.assert_called_once_with("PROT-C")
+
+    def test_action_send_edi_batch_groups_by_company(self):
+        """Documents of two companies never share a connector or a batch."""
+        move_a = self._create_move()
+        move_b = self._create_move()
+        company_b = self.env["res.company"].create({"name": "Test Company EDI Batch B"})
+        # Reassign without going through the ORM constraints: this test only
+        # exercises the grouping of the selection.
+        self.env.cr.execute(
+            "UPDATE account_move SET company_id = %s WHERE id = %s",
+            (company_b.id, move_b.id),
+        )
+        move_b.invalidate_recordset(["company_id"])
+
+        connector_a = self._mock_connector()
+        connector_b = self._mock_connector()
+        connectors = {self.company.id: connector_a, company_b.id: connector_b}
+        sent = []
+
+        def _fake_chunk(records, chunk, connector, chunk_index=0):
+            sent.append((connector, chunk))
+
+        def _fake_get_connector(record):
+            return connectors[record.company_id.id]
+
+        with (
+            patch(_GET_EDI_CONNECTOR, autospec=True, side_effect=_fake_get_connector),
+            patch(
+                "odoo.addons.l10n_py_edi_base.models.account_move"
+                ".AccountMove._l10n_py_send_batch_chunk",
+                autospec=True,
+                side_effect=_fake_chunk,
+            ),
+        ):
+            (move_a | move_b).action_send_edi_batch()
+
+        self.assertEqual(len(sent), 2)
+        by_connector = {id(c): chunk for c, chunk in sent}
+        self.assertEqual(by_connector[id(connector_a)], move_a)
+        self.assertEqual(by_connector[id(connector_b)], move_b)
+
     # ============== Regresión: flujo individual intacto ==============
 
     def test_flujo_individual_no_afectado_por_batch(self):
@@ -448,7 +526,15 @@ class TestEDIBatch(TransactionCase):
             "success": True,
             "result": {"deList": [{"cdc": "0" * 44, "qr": "", "xml": "<rDE></rDE>"}]},
         }
-        with patch(_GET_EDI_CONNECTOR, return_value=connector):
+        # The KuDE rendering is not under test here (the fake response carries
+        # a stub XML that pykude cannot render): stub it instead of muting.
+        with (
+            patch(_GET_EDI_CONNECTOR, return_value=connector),
+            patch(
+                "odoo.addons.l10n_py_edi_base.models.account_move"
+                ".AccountMove._generate_kude"
+            ),
+        ):
             move.action_send_edi()
 
         connector.send_batch.assert_not_called()
