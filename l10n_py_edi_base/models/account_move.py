@@ -82,6 +82,7 @@ class AccountMove(models.Model):
             ("rejected", "Rechazado"),
             ("cancelled", "Cancelado"),
             ("error", "Error"),
+            ("comm_error", "Error de comunicación"),
         ],
         string="Estado EDI",
         default="draft",
@@ -1339,7 +1340,11 @@ class AccountMove(models.Model):
             edi_status = "rejected"
             message = _("Estado SIFEN: %s") % sifen_status
         else:
-            edi_status = "error"
+            # Sin respuesta definitiva del SIFEN (timeout, error de transporte,
+            # respuesta sin rProtDe, etc.): no es un rechazo. Se marca
+            # "comm_error" para no confundirlo con "error"/"rejected"; el cron
+            # sigue consultando los documentos en este estado.
+            edi_status = "comm_error"
             message = response.get("error") or _("Error desconocido")
         self.write(
             {
@@ -1678,13 +1683,18 @@ class AccountMove(models.Model):
             except Exception:
                 _logger.warning("Error reenviando doc contingencia %s", doc.name)
 
-        # 2. Verificar estado de documentos ya enviados
+        # 2. Verificar estado de documentos ya enviados (incluye los que
+        # quedaron en comm_error: el SIFEN no respondió en la consulta anterior)
         # Bug corregido: el conector real (_sifen_check_status) espera el
         # CDC, no el l10n_py_edi_batch_id; además el resultado ahora se
         # persiste (antes el cuerpo del if era un `pass`).
         pending_docs = self.search(
             [
-                ("l10n_py_edi_status", "in", ["sent", "processing"]),
+                (
+                    "l10n_py_edi_status",
+                    "in",
+                    ["sent", "processing", "comm_error"],
+                ),
                 ("l10n_py_cdc", "!=", False),
             ]
         )

@@ -242,9 +242,9 @@ class TestEdiCheckStatusWizard(TransactionCase):
         self.assertEqual(move.l10n_py_edi_status, "rejected")
         self.assertEqual(wizard.status, "rejected")
 
-    def test_action_check_status_persists_error_without_result_status(self):
-        """success=False sin result.status (error técnico/timeout) sigue
-        mapeando a 'error', para no confundirlo con un rechazo de negocio."""
+    def test_action_check_status_no_definitive_answer_is_comm_error(self):
+        """success=False sin result.status (timeout / sin respuesta del SIFEN)
+        no es un rechazo: se persiste 'comm_error', nunca 'error'."""
         move = self._create_and_post_invoice(
             cdc="44444444444444444444444444444444444444444", edi_status="sent"
         )
@@ -257,8 +257,9 @@ class TestEdiCheckStatusWizard(TransactionCase):
             return_value={"success": False, "error": "Sin respuesta del SIFEN"},
         ):
             wizard.action_check_status()
-        self.assertEqual(move.l10n_py_edi_status, "error")
-        self.assertEqual(wizard.status, "error")
+        self.assertEqual(move.l10n_py_edi_status, "comm_error")
+        self.assertEqual(wizard.status, "comm_error")
+        self.assertEqual(move.l10n_py_edi_message, "Sin respuesta del SIFEN")
 
     def test_wizard_default_get_pulls_active_id(self):
         move = self._create_and_post_invoice(
@@ -294,4 +295,46 @@ class TestEdiCheckStatusWizard(TransactionCase):
         ) as mocked_check_status:
             self.env["account.move"]._cron_check_edi_status()
         mocked_check_status.assert_called_with(move.l10n_py_cdc)
+        self.assertEqual(move.l10n_py_edi_status, "accepted")
+
+    def test_cron_no_definitive_answer_sets_comm_error_same_as_wizard(self):
+        move = self._create_and_post_invoice(
+            cdc="55555555555555555555555555555555555555555", edi_status="sent"
+        )
+        with patch.object(
+            type(self.connector),
+            "check_status",
+            return_value={"success": False, "error": "Sin respuesta del SIFEN"},
+        ) as mocked_check_status:
+            self.env["account.move"]._cron_check_edi_status()
+        mocked_check_status.assert_any_call(move.l10n_py_cdc)
+        self.assertEqual(move.l10n_py_edi_status, "comm_error")
+
+    def test_cron_rejected_is_rejected_not_comm_error(self):
+        move = self._create_and_post_invoice(
+            cdc="66666666666666666666666666666666666666666", edi_status="sent"
+        )
+        with patch.object(
+            type(self.connector),
+            "check_status",
+            return_value={
+                "success": False,
+                "error": "Rechazado",
+                "result": {"status": "Rechazado"},
+            },
+        ):
+            self.env["account.move"]._cron_check_edi_status()
+        self.assertEqual(move.l10n_py_edi_status, "rejected")
+
+    def test_cron_retries_documents_in_comm_error(self):
+        move = self._create_and_post_invoice(
+            cdc="77777777777777777777777777777777777777777", edi_status="comm_error"
+        )
+        with patch.object(
+            type(self.connector),
+            "check_status",
+            return_value={"success": True, "result": {"status": "Aprobado"}},
+        ) as mocked_check_status:
+            self.env["account.move"]._cron_check_edi_status()
+        mocked_check_status.assert_any_call(move.l10n_py_cdc)
         self.assertEqual(move.l10n_py_edi_status, "accepted")

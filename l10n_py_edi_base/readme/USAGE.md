@@ -53,6 +53,11 @@ For a quick check on one invoice without leaving the form:
 2. Click **Consultar Status EDI**
 3. A popup shows the current status and message returned by SIFEN, and
    the invoice's own status is updated in the background
+4. If SIFEN gives no definitive answer (timeout, transport error), the
+   invoice moves to **Error de comunicación** (`comm_error`), which is
+   different from **Rechazado** (SIFEN rejected the document). The
+   scheduled action keeps querying documents in this state until SIFEN
+   answers
 
 ## Cancelling Electronic Documents
 
@@ -75,7 +80,8 @@ To declare a range of invoice numbers within a timbrado as void/unused
 with SIFEN (e.g. numbers skipped due to a printing error):
 
 1. Open the **Timbrado** (account.authorization) record
-2. Click the **Inutilizar Numeración** button
+2. Click the **Inutilizar Numeración** button (only available to the
+   Accounting manager group)
 3. Enter **Número Desde** / **Número Hasta** and a **Motivo**
 4. Confirm — the range is validated against the timbrado (must fall
    inside its authorized range and not overlap numbers already used)
