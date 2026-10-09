@@ -97,26 +97,26 @@
                     name="action_preview_xml"
                     string="Preview XML"
                     type="object"
-                    invisible="l10n_py_edi_status in ['sent', 'accepted', 'processing']"
+                    invisible="l10n_py_edi_status in ['sent', 'accepted', 'processing', 'comm_error']"
                 />
                 <button
                     name="action_preview_kude"
                     string="Preview KuDE"
                     type="object"
-                    invisible="l10n_py_edi_status in ['sent', 'accepted', 'processing']"
+                    invisible="l10n_py_edi_status in ['sent', 'accepted', 'processing', 'comm_error']"
                 />
                 <button
                     name="action_l10n_py_preview_qr"
                     string="Previsualizar QR"
                     type="object"
-                    invisible="l10n_py_edi_status in ['sent', 'accepted', 'processing']"
+                    invisible="l10n_py_edi_status in ['sent', 'accepted', 'processing', 'comm_error']"
                 />
                 <button
                     name="action_send_edi"
                     string="Enviar a EDI"
                     type="object"
                     class="oe_highlight"
-                    invisible="l10n_py_edi_status in ['sent', 'accepted', 'processing']"
+                    invisible="l10n_py_edi_status in ['sent', 'accepted', 'processing', 'comm_error']"
                 />
                 <button
                     name="action_retry_edi"
@@ -147,6 +147,21 @@
                     string="Descargar KUDE"
                     type="object"
                     invisible="not l10n_py_kude_pdf"
+                />
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_account_invoice_filter_edi" model="ir.ui.view">
+        <field name="name">account.move.search.edi</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_invoice_filter" />
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <filter
+                    name="l10n_py_edi_comm_error"
+                    string="EDI: error de comunicación"
+                    domain="[('l10n_py_edi_status', '=', 'comm_error')]"
                 />
             </xpath>
         </field>

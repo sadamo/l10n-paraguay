@@ -18,6 +18,7 @@
                     string="Inutilizar Numeración"
                     class="oe_stat_button"
                     icon="fa-ban"
+                    groups="account.group_account_manager"
                 />
             </xpath>
         </field>

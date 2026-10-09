@@ -3,7 +3,7 @@
 from datetime import date, timedelta
 from unittest.mock import patch
 
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
 
@@ -97,6 +97,53 @@ class TestNumberInutilizationWizard(TransactionCase):
         self.assertEqual(inut.number_from, 9990)
         self.assertEqual(inut.number_to, 9999)
         self.assertEqual(inut.motive, "Test wizard")
+
+    def _make_user(self, login, group_xmlids):
+        return self.env["res.users"].create(
+            {
+                "name": login,
+                "login": login,
+                "email": f"{login}@example.com",
+                "company_id": self.company.id,
+                "company_ids": [(6, 0, [self.company.id])],
+                "groups_id": [
+                    (6, 0, [self.env.ref(xmlid).id for xmlid in group_xmlids])
+                ],
+            }
+        )
+
+    def test_wizard_restricted_to_accounting_manager(self):
+        """Numbering voiding is an irreversible fiscal act: only the
+        accounting manager group can open and run the wizard."""
+        vals = {
+            "authorization_id": self.authorization.id,
+            "number_from": 9990,
+            "number_to": 9999,
+            "motive": "Test wizard",
+        }
+        billing = self._make_user(
+            "inut_billing", ["base.group_user", "account.group_account_invoice"]
+        )
+        with self.assertRaises(AccessError):
+            self.env["l10n_py.number.inutilization.wizard"].with_user(billing).create(
+                vals
+            )
+        manager = self._make_user(
+            "inut_manager", ["base.group_user", "account.group_account_manager"]
+        )
+        wizard = self.env["l10n_py.number.inutilization.wizard"].with_user(manager)
+        wizard = wizard.create(vals)
+        with patch.object(
+            type(self.connector),
+            "inutilize_range",
+            return_value={"success": True},
+        ):
+            wizard.action_inutilize()
+        self.assertTrue(
+            self.env["l10n_py.number.inutilization"].search(
+                [("authorization_id", "=", self.authorization.id)]
+            )
+        )
 
     def test_action_inutilize_calls_action_send(self):
         wizard = self._make_wizard()
