@@ -88,3 +88,63 @@ class TestSIFENConnector(TransactionCase):
         result = connector.test_connection()
         self.assertEqual(result["type"], "ir.actions.client")
         self.assertEqual(result["tag"], "display_notification")
+
+    def test_send_batch_signs_and_injects_dcarqr_like_single_send(self):
+        """Each DE of a batch must be serialized, signed and carry dCarQR
+        exactly as in the single send (pysifen.enviar_lote alone does not
+        inject the QR)."""
+        connector = self.env["l10n_py.edi.connector"].create(
+            {
+                "name": "SIFEN Batch",
+                "company_id": self.company.id,
+                "provider_type": "sifen",
+                "environment": "test",
+            }
+        )
+        sent = {}
+
+        class FakeRde:
+            class DE:
+                Id = "CDC1"
+
+        class FakeTransmissao:
+            def _sign_xml(self, xml, doc_id):
+                return f'<?xml version="1.0"?><rDE>{xml}</rDE>'
+
+            def enviar_lote(self, rde_list):
+                # same flow as pysifen: serialize + sign each DE
+                sent["xmls"] = [
+                    self._sign_xml(self._serialize(r), r.DE.Id) for r in rde_list
+                ]
+
+                class Result:
+                    dProtConsLote = "PROT1"
+                    dCodRes = "0300"
+
+                return Result()
+
+            def cleanup(self):
+                pass
+
+        type_connector = type(connector)
+        with (
+            patch.object(
+                type_connector,
+                "_sifen_get_transmissao_de",
+                return_value=FakeTransmissao(),
+            ),
+            patch.object(type_connector, "_sifen_build_rde", return_value=FakeRde()),
+            patch.object(type_connector, "_sifen_serialize_rde", return_value="<DE/>"),
+            patch.object(
+                type_connector,
+                "_sifen_qr_link_from_signed",
+                return_value="https://qr?a=1&b=2",
+            ),
+        ):
+            response = connector._sifen_send_batch([{}, {}])
+        self.assertTrue(response["success"])
+        self.assertEqual(response["result"]["batch_protocol"], "PROT1")
+        self.assertEqual(len(sent["xmls"]), 2)
+        for xml in sent["xmls"]:
+            self.assertIn("<dCarQR>https://qr?a=1&amp;b=2</dCarQR>", xml)
+            self.assertFalse(xml.startswith("<?xml"))

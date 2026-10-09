@@ -172,6 +172,26 @@ class EDIConnector(models.Model):
         """
         self.ensure_one()
         transmissao = self._sifen_get_transmissao_de()
+        # pysifen.enviar_lote serializa y firma cada DE por su cuenta, sin
+        # inyectar dCarQR y con el serializador de la librería (prefijo ns0:,
+        # <Signature> placeholder), que el SET rechaza en el envío individual.
+        # Se reemplazan los dos pasos por los del envío individual, para que
+        # cada DE del lote salga igual que con _sifen_send_document.
+        original_sign = transmissao._sign_xml
+
+        def _sign_with_qr(xml, doc_id):
+            signed_xml = original_sign(xml, doc_id)
+            qr_link = self._sifen_qr_link_from_signed(signed_xml)
+            if qr_link:
+                signed_xml = self._sifen_inject_dcarqr(signed_xml, qr_link)
+            stripped = signed_xml.lstrip()
+            if stripped.startswith("<?xml"):
+                # varios rDE concatenados: sin declaración XML individual
+                signed_xml = stripped[stripped.find("?>") + 2 :].lstrip()
+            return signed_xml
+
+        transmissao._serialize = self._sifen_serialize_rde
+        transmissao._sign_xml = _sign_with_qr
         try:
             rde_list = [
                 self._sifen_build_rde(invoice_data)
