@@ -247,6 +247,7 @@ class TestEDIBatch(TransactionCase):
         # El documento ya aceptado permanece intacto: no se reenvía.
         self.assertEqual(move_already_sent.l10n_py_edi_status, "accepted")
 
+    @mute_logger("odoo.addons.l10n_py_edi_base.models.account_move")
     def test_reenvio_documento_ya_enviado_es_bloqueado(self):
         """Reenviar la acción sobre un doc ya 'batch_sent' no lo reenvía."""
         move = self._create_move()
