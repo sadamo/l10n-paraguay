@@ -1,3 +1,4 @@
+from odoo import Command
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
 
@@ -135,4 +136,72 @@ class TestFiscalPositionExport(TransactionCase):
         self.assertTrue(taxes)
         self.assertEqual(
             set(taxes.mapped("l10n_py_iva_affectation")) - {False}, {"1", "2", "3"}
+        )
+
+    def test_delivery_address_without_country_does_not_get_export_fp(self):
+        """The ranking is evaluated with the delivery address: a PY customer
+        whose delivery contact has no country must not get Exportación."""
+        company = self.env["res.company"].create({"name": "PY Co Deliv"})
+        self.env["account.chart.template"].try_loading(
+            "py", company=company, install_demo=False
+        )
+        partner = self.env["res.partner"].create(
+            {"name": "Cliente PY", "country_id": self.env.ref("base.py").id}
+        )
+        delivery = self.env["res.partner"].create(
+            {"name": "Entrega sin país", "parent_id": partner.id, "type": "delivery"}
+        )
+        delivery.country_id = False
+        fp = (
+            self.env["account.fiscal.position"]
+            .with_company(company)
+            ._get_fiscal_position(partner, delivery)
+        )
+        self.assertNotEqual(fp.name, "Ventas - Exportación")
+
+    def test_foreign_vendor_bill_purchase_taxes_untouched(self):
+        """A vendor bill from a foreign supplier keeps its purchase taxes: the
+        export position only maps the sales IVA taxes. The position itself is
+        still assigned (Odoo selects it per partner, not per document type)."""
+        company = self.env["res.company"].create({"name": "PY Co Vendor"})
+        self.env["account.chart.template"].try_loading(
+            "py", company=company, install_demo=False
+        )
+        foreign = self.env["res.partner"].create(
+            {"name": "Proveedor Brasil", "country_id": self.env.ref("base.br").id}
+        )
+        tax = self.env["account.tax"].search(
+            [
+                ("company_id", "=", company.id),
+                ("type_tax_use", "=", "purchase"),
+                ("amount", "=", 10),
+            ],
+            limit=1,
+        )
+        self.assertTrue(tax, "IVA 10% compras debe existir")
+        bill = (
+            self.env["account.move"]
+            .with_company(company)
+            .create(
+                {
+                    "move_type": "in_invoice",
+                    "partner_id": foreign.id,
+                    "invoice_date": "2026-06-15",
+                    "invoice_line_ids": [
+                        Command.create(
+                            {
+                                "name": "Servicio del exterior",
+                                "quantity": 1,
+                                "price_unit": 100,
+                                "tax_ids": [Command.set(tax.ids)],
+                            }
+                        )
+                    ],
+                }
+            )
+        )
+        self.assertEqual(
+            bill.invoice_line_ids.tax_ids,
+            tax,
+            "La posición de exportación no debe alterar los impuestos de compra",
         )
