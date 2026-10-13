@@ -627,7 +627,6 @@ class AccountMove(models.Model):
             return "PRY"
         return AccountMove._ALPHA2_TO_3.get(country.code, country.code)
 
-
     def _prepare_edi_document_data(self):
         """Preparar datos del documento electrónico en formato JSON"""
         self.ensure_one()
