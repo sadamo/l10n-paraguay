@@ -291,6 +291,65 @@ class TestMaquilaOps(TransactionCase):
         self.assertEqual(move.l10n_py_maquila_program_id, self.program)
         self.assertEqual(len(move.line_ids), 2)
 
+    def test_tum_wizard_converts_foreign_currency_invoices(self):
+        """The export invoice amount is summed in the company currency and
+        converted once to the wizard currency, not added up as raw
+        amount_total of different currencies."""
+        foreign = self.env["res.currency"].create(
+            {
+                "name": "XTS",
+                "symbol": "XTS",
+                "rate_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "name": "2026-01-01",
+                            "rate": 2.0,
+                            "company_id": self.company.id,
+                        },
+                    )
+                ],
+            }
+        )
+        income = self.env["account.account"].search(
+            [("account_type", "=", "income")], limit=1
+        )
+        invoice = self.env["account.move"].create(
+            {
+                "move_type": "out_invoice",
+                "partner_id": self.matriz.id,
+                "currency_id": foreign.id,
+                "invoice_date": "2026-06-15",
+                "l10n_py_maquila_program_id": self.program.id,
+                "invoice_line_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "name": "Export",
+                            "quantity": 1,
+                            "price_unit": 500,
+                            "account_id": income.id,
+                            "tax_ids": [(5, 0, 0)],
+                        },
+                    )
+                ],
+            }
+        )
+        invoice.action_post()
+        wiz = self.env["l10n_py.maquila.tum.wizard"].create(
+            {
+                "program_id": self.program.id,
+                "period_start": "2026-01-01",
+                "period_end": "2026-12-31",
+                "currency_id": self.company.currency_id.id,
+            }
+        )
+        wiz.action_compute()
+        # 500 XTS at rate 2.0 = 250 in the company currency
+        self.assertAlmostEqual(wiz.export_invoice_amount, 250.0, places=2)
+
     def test_tax_credit_wizard(self):
         _j, exp_acc, pay_acc = self._accounts()
         wiz = self.env["l10n_py.maquila.tax.credit.wizard"].create(

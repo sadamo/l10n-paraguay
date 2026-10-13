@@ -71,7 +71,15 @@ class MaquilaTumWizard(models.TransientModel):
                 ("invoice_date", "<=", self.period_end),
             ]
         )
-        self.export_invoice_amount = sum(invoices.mapped("amount_total"))
+        # amount_total_signed is in the company currency: sum there and
+        # convert once to the wizard currency at period_end (the same date
+        # used when the entry is generated). Summing amount_total would add
+        # amounts in different currencies.
+        company = self.program_id.company_id or self.env.company
+        total_company = sum(invoices.mapped("amount_total_signed"))
+        self.export_invoice_amount = company.currency_id._convert(
+            total_company, self.currency_id, company, self.period_end
+        )
         # The VAN is an input: this module has no bill of materials, so it
         # keeps the value entered by the user (l10n_py_maquila_mrp provides
         # the VAN computation wizard).
