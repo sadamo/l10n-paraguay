@@ -79,9 +79,9 @@ class L10nPyLibroLine(models.Model):
     manual_override = fields.Boolean(
         string="Editado manualmente",
         default=False,
-        help="Marcado automáticamente quando o usuário edita um campo f_* "
-        "de uma linha derivada de account.move: impede que "
-        "action_generate_lines sobrescreva o valor na regeneração.",
+        help="Se marca automáticamente cuando el usuario edita un campo f_* "
+        "de una línea derivada de account.move: impide que "
+        "action_generate_lines sobrescriba el valor en la regeneración.",
     )
 
     state = fields.Selection(

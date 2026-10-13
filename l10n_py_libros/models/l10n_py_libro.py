@@ -369,7 +369,10 @@ class L10nPyLibro(models.Model):
                 target = libro._get_move_target_tipo_registro(move)
                 if target != libro.tipo_registro:
                     continue
-                if target == "ventas" and move.l10n_py_edi_status == "accepted":
+                # Documento electrónico = tiene CDC del SIFEN (ya fue emitido
+                # electrónicamente, sea cual sea su estado actual): sale de
+                # Ventas. Un comprobante preimpreso no tiene CDC y se queda.
+                if target == "ventas" and move.l10n_py_cdc:
                     continue
                 if target == "compras" and move.l10n_py_libro_electronic:
                     continue
@@ -395,7 +398,7 @@ class L10nPyLibro(models.Model):
 
     def action_reopen(self):
         for libro in self:
-            libro.message_post(body=_("Libro reaberto para edição."))
+            libro.message_post(body=_("Libro reabierto para edición."))
             libro.state = "generated"
 
     def action_confirm(self):
@@ -404,7 +407,7 @@ class L10nPyLibro(models.Model):
             if libro.error_line_count:
                 raise UserError(
                     _(
-                        "Existem %(count)s línea(s) en estado erro. Corríjalas "
+                        "Existen %(count)s línea(s) en estado error. Corríjalas "
                         "antes de confirmar el libro.",
                         count=libro.error_line_count,
                     )
@@ -444,7 +447,7 @@ class L10nPyLibro(models.Model):
             if libro.error_line_count:
                 raise UserError(
                     _(
-                        "Existem %(count)s línea(s) en estado erro. Corríjalas "
+                        "Existen %(count)s línea(s) en estado error. Corríjalas "
                         "antes de descargar el archivo.",
                         count=libro.error_line_count,
                     )
@@ -455,9 +458,9 @@ class L10nPyLibro(models.Model):
             if libro.lote_manual_override and len(lines) > MAX_LINES_PER_FILE:
                 raise UserError(
                     _(
-                        "XXXXX manual não suporta múltiplos sub-lotes neste "
-                        "período; limpe o override ou gere um valor por "
-                        "sub-lote manualmente depois."
+                        "XXXXX manual no soporta múltiples sub-lotes en este "
+                        "período; limpie el override o genere un valor por "
+                        "sub-lote manualmente después."
                     )
                 )
             chunks = [

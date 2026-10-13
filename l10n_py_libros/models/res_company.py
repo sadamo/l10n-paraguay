@@ -18,7 +18,7 @@ class ResCompany(models.Model):
     )
 
     l10n_py_libro_nc_nd_direction = fields.Selection(
-        selection=[("padrao", "Padrão (RG 12/24)"), ("invertida", "Invertida")],
+        selection=[("padrao", "Estándar (RG 12/24)"), ("invertida", "Invertida")],
         string="Dirección NC/ND (Libros DNIT)",
         required=True,
         default="padrao",
@@ -41,9 +41,9 @@ class ResCompany(models.Model):
                     if blocking:
                         raise UserError(
                             _(
-                                "Existem libros de Ventas/Compras já gerados. "
-                                "Reabra-os antes de trocar a direção NC/ND, e "
-                                "gere-os novamente depois."
+                                "Existen libros de Ventas/Compras ya generados. "
+                                "Reábralos antes de cambiar la dirección NC/ND y "
+                                "genérelos nuevamente después."
                             )
                         )
         return super().write(vals)

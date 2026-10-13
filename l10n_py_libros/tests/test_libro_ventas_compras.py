@@ -80,6 +80,55 @@ class TestLibroVentasCompras(LibroCommonCase):
         libro.action_generate_lines()
         self.assertEqual(len(libro.line_ids), 0)
 
+    def test_ventas_excluye_documentos_con_cdc_en_cualquier_estado(self):
+        """Electronic = has a SIFEN CDC, whatever the EDI status is now."""
+        for index, status in enumerate(("sent", "processing", "rejected")):
+            invoice = self._create_invoice(
+                "out_invoice", [(self.product, self.tax_10, 1100.0)]
+            )
+            invoice.action_post()
+            invoice.write(
+                {"l10n_py_edi_status": status, "l10n_py_cdc": str(index) * 44}
+            )
+        libro = self._create_libro("ventas")
+        libro.action_generate_lines()
+        self.assertEqual(len(libro.line_ids), 0)
+
+    def test_ventas_incluye_preimpreso_sin_cdc(self):
+        invoice = self._create_invoice(
+            "out_invoice", [(self.product, self.tax_10, 1100.0)]
+        )
+        invoice.action_post()
+        self.assertFalse(invoice.l10n_py_cdc)
+        libro = self._create_libro("ventas")
+        libro.action_generate_lines()
+        self.assertEqual(libro.line_ids.move_id, invoice)
+
+    def test_lote_letra_por_tipo_de_registro_desde_el_wizard(self):
+        """The generate wizard creates the books without the menu context:
+        Ventas and Compras of the same period must get V and C."""
+        wizard = self.env["l10n_py.libro.generate.wizard"].create(
+            {
+                "company_id": self.company.id,
+                "obligacion": "955",
+                "year": self.TEST_YEAR,
+                "month": self.TEST_MONTH,
+                "incluir_ventas": True,
+                "incluir_compras": True,
+            }
+        )
+        wizard.action_generate()
+        libros = self.env["l10n_py.libro"].search(
+            [
+                ("company_id", "=", self.company.id),
+                ("year", "=", self.TEST_YEAR),
+                ("month", "=", self.TEST_MONTH),
+            ]
+        )
+        letras = {libro.tipo_registro: libro.lote_letra for libro in libros}
+        self.assertEqual(letras["ventas"], "V")
+        self.assertEqual(letras["compras"], "C")
+
     def test_compras_excluye_electronico_manual(self):
         invoice = self._create_invoice(
             "in_invoice",
