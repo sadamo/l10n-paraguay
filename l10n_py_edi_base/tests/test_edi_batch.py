@@ -443,7 +443,7 @@ class TestEDIBatch(TransactionCase):
         self.assertEqual(called_batch_ids, ["PROT-A", "PROT-B"])
 
     def test_cron_polls_sent_and_batch_sent_documents(self):
-        """The cron keeps its sent/processing/comm_error step (by CDC) next to
+        """The cron keeps its sent/processing step (by CDC) next to
         the batch_sent step (by batch protocol)."""
         move_sent = self._create_move()
         move_sent.write({"l10n_py_edi_status": "sent", "l10n_py_cdc": "CDC-SENT"})
